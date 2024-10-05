@@ -1,0 +1,107 @@
+/* video.pld - Spare Time Gizmos Elf VT1802 Final Video PLD		*/
+/*									*/
+/*   Copyright (C) 2024 by Robert Armstrong, Milpitas, California.	*/
+/*									*/
+/*  This program is free software; you can redistribute it and/or	*/
+/* modify it under the terms of the GNU General Public License as	*/
+/* published by the Free Software Foundation; either version 2 of the	*/
+/* License, or (at your option) any later version.			*/
+/*									*/
+/*  This program is distributed in the hope that it will be useful, but	*/
+/* WITHOUT ANY WARRANTY; without even the implied warranty of		*/
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU	*/
+/* General Public License for more details.				*/
+/*									*/
+/*   You should have received a copy of the GNU General Public License	*/
+/* along with this program; if not, write to the Free Software		*/
+/* Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111 USA.	*/
+/*									*/
+/* DESCRIPTION								*/
+/*   This GAL takes the horizontal and vertical sync signals, reverse	*/
+/* video, blanking, highlight, etc signals from the 8275 and combines	*/
+/* them with the serial video output from the 74HC166 shift register.	*/
+/* The result is a composite sync and video signal ready to be sent to	*/
+/* the monitor.								*/
+/*									*/
+/* REVISION HISTORY							*/
+/*  5-SEP-24	RLA	New file.					*/
+/*--									*/
+NAME            VIDEO;
+PARTNO          VIDEO;
+REVISION        A;
+DATE            09/05/24;
+DESIGNER        Robert Armstrong;
+COMPANY         Spare Time Gizmos;
+ASSEMBLY        VT1802;
+LOCATION        U18;
+DEVICE          G16V8MS;
+
+/* INPUTS... */
+Pin  1 = CCLOCK; 	/* 8275 character clock				*/
+Pin  2 = VIDEO_ON;	/* inhibits video until the 8275 is initialized	*/
+Pin  3 = HSYNC;		/* horizontal sync timing from 8275		*/
+Pin  4 = VSYNC;		/* vertical sync timing from 8275		*/
+Pin  5 = RVV;		/* 8275 reverse video output			*/
+Pin  6 = VSP;		/* 8275 video suppression (blanking) output	*/
+Pin  7 = LTEN;		/* 8275 light enable output			*/
+Pin  8 = HLGT;		/* 8275 highlight output			*/
+Pin  9 = SERIAL_VIDEO;	/* serial video output from video shifter	*/ 
+/* Pin 11 = NC */
+
+/* OUTPUTS... */
+Pin 14 =  RVV_DELAYED;	/* RVV input synchronized with video		*/
+Pin 17 =  VSP_DELAYED;	/* VSP   "     "     "     "     "		*/
+Pin 18 = LTEN_DELAYED;	/* LTEN  "     "     "     "     "		*/
+Pin 19 = HLGT_DELAYED;	/* HLGT  "     "     "     "     "		*/
+Pin 13 =!HLGT_DELAYED_L;/* inverted version of above!			*/
+Pin 16 =COMPOSITE_VIDEO;/* composite video (including RVV/VSP/LTEN)	*/
+Pin 15 =!COMPOSITE_SYNC;/* composite sync output			*/
+/* Pin 12 = NC */
+
+
+/*   The video stage is effectively pipelined and every time the VSR is	*/
+/* clocked, it's latching the data for the previous character, which is	*/
+/* still on the character generator EPROM outputs, even while the 8275	*/
+/* is changing the EPROM inputs for the next character.  This allows a	*/
+/* full character time, 666ns, for the EPROM access (which is a good	*/
+/* thing, since EPROMs aren't very fast!) but it does have the problem	*/
+/* that the video is delayed by one character time from the other 8275	*/
+/* outputs.								*/
+/*									*/
+/*   To fix this, we have to pipline the 8275 VSP, RVV, LTEN and HLGT	*/
+/* outputs and delay them by one character time as well. Fortunately	*/
+/* we have the character clock connected to pin 1, so we can use the	*/
+/* GAL in registered mode for just this purpose.  If we don't do this	*/
+/* then all the video attributes, including blink, reverse video,	*/
+/* underline AND THE CURSOR will all be off by one character position!	*/
+/*									*/
+/*   Lastly, note that HLGT_DELAYED and HLGT_DELAYED_L are the same	*/
+/* signal; the latter is just the inverse of the former.  We need both,	*/
+/* and this saves us an external inverter.				*/
+VSP_DELAYED.d   = VSP; 
+RVV_DELAYED.d   = RVV;
+LTEN_DELAYED.d  = LTEN;
+HLGT_DELAYED.d  = HLGT;  HLGT_DELAYED_L = HLGT_DELAYED;
+
+
+/*   Note that in principle HRTC and VRTC need to be delayed as well,	*/
+/* but in this case the error is small (1 part in 96 for HRTC, and one	*/
+/* part in about 2000 for VRTC) so it's not so important.  And in any	*/
+/* case this error can be negated by adjusting the horizontal and vert-	*/
+/* ical position trimmers (VR1 and VR2).				*/
+
+
+/*   The last thing we do is to generate the composite video by comb-	*/
+/* ining the serial video from the VSR with the video suppression (VSP)	*/
+/* reverse video (RVV) and light enable (LTEN) outputs from the 8275.	*/
+/* The composite sync output is used to generate the RS-170 video (the	*/
+/* CGA monitor has separate sync inputs) and is generated simply by	*/
+/* XORing the horizontal and vertical syncs.  Note that both outputs	*/
+/* are inhibited by VIDEO_ON until the 8275 has been initialized.	*/
+/*									*/
+/*   Highlight (HLGT) is not part of this computation (the ccomposite	*/
+/* video output is digital after all - there's no "half on"!) but the	*/
+/* HLGT_DELAYED outputs are used externally to drive the CGA connector	*/
+/* and the analog video generation.					*/
+COMPOSITE_VIDEO = (((SERIAL_VIDEO & !VSP_DELAYED) $ RVV_DELAYED) # LTEN_DELAYED) & VIDEO_ON;
+COMPOSITE_SYNC = (HSYNC $ VSYNC) & VIDEO_ON;

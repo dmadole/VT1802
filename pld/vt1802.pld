@@ -1,0 +1,136 @@
+/*++									*/
+/* vt1802.pld - Spare Time Gizmos VT1802 I/O decoding GAL		*/
+/*									*/
+/*   Copyright (C) 2024 by Robert Armstrong, Milpitas, California.	*/
+/*									*/
+/*  This program is free software; you can redistribute it and/or	*/
+/* modify it under the terms of the GNU General Public License as	*/
+/* published by the Free Software Foundation; either version 2 of the	*/
+/* License, or (at your option) any later version.			*/
+/*									*/
+/*  This program is distributed in the hope that it will be useful, but	*/
+/* WITHOUT ANY WARRANTY; without even the implied warranty of		*/
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU	*/
+/* General Public License for more details.				*/
+/*									*/
+/*   You should have received a copy of the GNU General Public License	*/
+/* along with this program; if not, write to the Free Software		*/
+/* Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111 USA.	*/
+/*									*/
+/* DESCRIPTION								*/
+/*   This GAL decodes the necessary control signals for the 8275 CRTC	*/
+/* and other peripherals in the VT1802.  It's pretty simple, although	*/
+/* the CRTC needs a little extra work because it transfers character	*/
+/* data from memory using the 1802 DMA functions.  And FWIW, the 1854	*/
+/* UART doesn't need ANY help from this GAL - it has enough enable	*/
+/* inputs the handle all the decoding on its own.  But then the CDP1854	*/
+/* is one of the COSMAC family chips and the 8275 isn't.		*/
+/*									*/
+/* I/O MAP								*/
+/*	PORT	INPUT		OUTPUT					*/
+/*	----	---------------	---------------				*/
+/*	  1	unused		write flags				*/
+/*	  2	CDP1854 RXBUF	CDP1854 TXBUF				*/
+/*	  3	CDP1854 status	CDP1854 control				*/
+/*	  4	DIP switches	CDP1863 tone generator			*/
+/*	  5	keyboard data	CDP1863 baud rate generator		*/
+/*	  6	unused		8275 parameter				*/
+/*	  7	8275 status	8275 command				*/
+/*									*/
+/* REVISION HISTORY							*/
+/*  5-SEP-24	RLA	Changes for the rev B PCB			*/
+/* 16-SEP-24	RLA	Switch ports 4 & 5 for VIS1802 compatibility	*/
+/* 17-SEP-24	RLA	We need to decode N for RD_CRTC too, otherwise	*/
+/*			  VIDEO ON gets set when we read the switches!	*/
+/*--									*/
+NAME            VT1802;
+PARTNO          VT1802;
+REVISION        D;
+DATE            09/17/24;
+DESIGNER        Robert Armstrong;
+COMPANY         Spare Time Gizmos;
+ASSEMBLY        VT1802;
+LOCATION        U20;
+DEVICE          G22V10;
+
+/* INPUTS...								*/
+/* Pin 1 = N/C */
+Pin  2 = TPA;		/* CDP1802 timing pulse A			*/
+Pin  3 = TPB;		/*    "       "     "   B			*/
+Pin  4 = SC0;		/* CDP1802 state code bit 0			*/
+Pin  5 = SC1;		/*    "      "    "    "  1			*/
+FIELD SC = [SC1,SC0];	/* state code vector				*/
+Pin  6 = !MWR;		/*    "     "  "  write  "			*/
+Pin  7 = !MRD;		/* CDP1802 memory read strobe			*/
+Pin  8 = N2;		/* CDP1802 I/O address line #2 (MSB)		*/
+Pin  9 = N1;		/*    "     "     "     "   #1			*/
+Pin 10 = N0;		/*    "     "     "     "   #0 (LSB)		*/
+FIELD N = [N2,N1,N0];	/* I/O device address vector			*/
+/* Pin 11 = N/C */
+/* Pin 13 = N/C */
+
+/* OUTPUTS...								*/
+Pin 23 =  WR_FLAGS;	/* write flags register				*/
+Pin 22 =  WR_AUDIO;	/* write CDP1863 audio tone generator		*/
+Pin 21 = !DMAACK;	/* decoded CPU DMA acknowledge state		*/
+Pin 20 = !INTACK;	/*  "   "   "  interrupt  "      "		*/
+Pin 19 = !RD_CRTC;	/* 8275 CRTC read data strobe			*/
+Pin 18 = !WR_CRTC;	/*  "    "  write data strobe			*/
+Pin 17 = !RD_KEY_DATA;	/* enable PS/2 keyboard data buffer		*/
+Pin 16 =  IO_STRETCH;	/* used to extend the 1802 MRD access time	*/
+Pin 15 =  WR_BAUD;	/* write CDP1863 baud rate generator		*/
+Pin 14 = !RD_SWITCHES;	/* read DIP switch register			*/
+
+
+/*   Decode the SC (state code) CPU outputs to detect the DMA ACK and	*/
+/* interrupt states.  Note that INTACK is conditioned with TPA as well	*/
+/* as the state code - that's necessary because	without TPA momentary	*/
+/* glitches on the state codes (e.g. when the CPU goes from EXECUTE	*/
+/* (SC1) to DMA (SC2)) can cause spurious outputs.  Suprisingly, this	*/
+/* doesn't seem	to be a problem with a 1802 CPU, but with the 1805 it	*/
+/* will glitch for sure!						*/
+DMAACK = SC:2;
+INTACK = SC:3 & TPA;
+
+
+/*   IO_STRETCH is a simple SR flip flop that's set by TPA and cleared	*/
+/* by TPB.  This lets us stretch the usual CDP1802 I/O read time to	*/
+/* almost 8 clock cycles, which is nearly an eternity. Once we have IO_	*/
+/* STRETCH signal we can generate the IORD and IOWR signals.  Remember	*/
+/* that on the 1802 an I/O read is a memory write, and an I/O write is	*/
+/* a memory read.  Note that these signals are only valid when N != 0,	*/
+/* and you must include some kind of N decoding in any logic.   	*/
+IO_STRETCH = (!IO_STRETCH & TPA)  #  (IO_STRETCH & !TPB);
+IORD = ((IO_STRETCH & !TPA) # TPB) & !MRD;
+IOWR = TPB & MRD;
+
+
+/*   Generate the read and write strobes for the 8275 CRTC. RD_CRTC and	*/
+/* WR_CRTC are asserted any time the CPU executes an I/O instruction	*/
+/* for either of the IO ports assigned to the CRTC.  Note the CRTC CS	*/
+/* input is externally generated by a simple NAND of N2 and N1, which	*/
+/* means the CRTC will ignore the RD and WR inputs unless N=6 or N=7.	*/
+/* You might think that means we don't need to decode the N lines here	*/
+/* at all for RD_CRTC or WR_CRTC, HOWEVER, the VIDEO ON flip flop is	*/
+/* also set by any CRTC read, and that doesn't decode the N lines	*/
+/*									*/
+/*   When it's reading characters from the frame buffer with DMA, the	*/
+/* 8275 wants to see DACK and WR asserted for every byte but it DOES	*/
+/* NOT want to see CS asserted.  It'll screw up if you do!  This is the	*/
+/* reason why we can't simply hardwire CS to be always be asserted and	*/
+/* just control the 8275 with the RD and WR signals.  DACK is simply	*/
+/* DMAACK, derived from the CPU state codes above.			*/
+RD_CRTC =  IORD & (N:6 # N:7);
+WR_CRTC = (IOWR & (N:6 # N:7)) # (TPB & MRD & DMAACK);
+
+
+/*   Now decode the I/O selects for the rest of the peripherals.  Note 	*/
+/* that the CDP1854 uses N=2 and N=3 and decodes that entirely on its	*/
+/* own without any help from us.  Likewise the 8275 decodes N=6 and N=7	*/
+/* externally (see above).  The only I/O ports left to us here are 1, 4	*/
+/* and 5.								*/
+WR_FLAGS    = IOWR & N:1;
+RD_SWITCHES = IORD & N:4;
+WR_AUDIO    = IOWR & N:4;
+RD_KEY_DATA = IORD & N:5;
+WR_BAUD     = IOWR & N:5;

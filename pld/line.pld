@@ -1,0 +1,104 @@
+/* line.pld - Spare Time Gizmos Elf VT1802 8275 line drawing PLD	*/
+/*									*/
+/*   Copyright (C) 2024 by Robert Armstrong, Milpitas, California.	*/
+/*									*/
+/*  This program is free software; you can redistribute it and/or	*/
+/* modify it under the terms of the GNU General Public License as	*/
+/* published by the Free Software Foundation; either version 2 of the	*/
+/* License, or (at your option) any later version.			*/
+/*									*/
+/*  This program is distributed in the hope that it will be useful, but	*/
+/* WITHOUT ANY WARRANTY; without even the implied warranty of		*/
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU	*/
+/* General Public License for more details.				*/
+/*									*/
+/*   You should have received a copy of the GNU General Public License	*/
+/* along with this program; if not, write to the Free Software		*/
+/* Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111 USA.	*/
+/*									*/
+/* DESCRIPTION								*/
+/*   This GAL implements the 8275 line drawing functions.  The 8275 has	*/
+/* two "line attribute" outputs, LA1 and LA0, which control the line	*/
+/* drawing.  All the other inputs on this GAL come directly from the	*/
+/* FONT ROM, and all the outputs of this GAL go directly to the video	*/
+/* shift register.							*/
+/*									*/
+/*   Normally when LA1=LA0=0 we just pass thru the font data directly 	*/
+/* to the video shift register.  This lets us display characters just	*/
+/* as you'd expect.  However when [LA0,LA1] != 0 then the font data is	*/
+/* suppressed and we force the video outputs according to this table	*/
+/*									*/
+/*	LA1  LA0	DISPLAY						*/
+/*	---  ---	------------------				*/
+/*	 1    0		left 4 pixels = 1, right 4 = 0			*/
+/*       0    1		middle pixel = 1, all others zero		*/
+/*       1    1		right 4 pixels = 1, left 4 = 0			*/
+/*									*/
+/*   It seems trivial, but between this function, the LTEN and the VSP	*/
+/* outputs, it allows the 8275 to draw vertical lines, horizontal lines	*/
+/* and all possible intersections of those (corners, T junctons, cross	*/
+/* hairs, etc).  							*/
+/*									*/
+/* REVISION HISTORY							*/
+/*  5-SEP-24	RLA	New file.					*/
+/*--									*/
+NAME            LINE;
+PARTNO          LINE;
+REVISION        A;
+DATE            09/05/24;
+DESIGNER        Robert Armstrong;
+COMPANY         Spare Time Gizmos;
+ASSEMBLY        VT1802;
+LOCATION        U12;
+DEVICE          G16V8AS;	/* ATF16V8 in SIMPLE mode! */
+
+/* INPUTS... */
+Pin  1 = LA0;		/* 8275 line attribute bit 0			*/
+Pin 11 = LA1;		/*  "    "    "    "    "  1			*/
+FIELD LA = [LA1..LA0];
+/*   NOTE that the video bits are NOT assigned to consectutive pins!	*/
+/* This was done to simplify the PCB layout ...				*/
+Pin  2 = VIN0;		/* video input bit 0				*/
+Pin  3 = VIN1;		/*   "     "    "  1				*/
+Pin  4 = VIN2;		/*   "     "    "  1				*/
+Pin  9 = VIN3;		/*   "     "    "  1				*/
+Pin  8 = VIN4;		/*   "     "    "  1				*/
+Pin  7 = VIN5;		/*   "     "    "  1				*/
+Pin  6 = VIN6;		/*   "     "    "  1				*/
+Pin  5 = VIN7;		/*   "     "    "  1				*/
+FIELD VIN = [VIN7..VIN0];
+
+/* OUTPUTS... */
+/*   Likewise, note that the video output bits are NOT consectutive!	*/
+Pin 19 = VOUT0;		/* video output bit 0				*/
+Pin 14 = VOUT1;		/*   "    "  "   "  1				*/
+Pin 13 = VOUT2;		/*   "    "  "   "  2				*/
+Pin 12 = VOUT3;		/*   "    "  "   "  3				*/
+Pin 15 = VOUT4;		/*   "    "  "   "  4				*/
+Pin 16 = VOUT5;		/*   "    "  "   "  5				*/
+Pin 17 = VOUT6;		/*   "    "  "   "  6				*/
+Pin 18 = VOUT7;		/*   "    "  "   "  7				*/
+FIELD VOUT = [VOUT7..VOUT0];
+
+/*   The four possible line attribute codes encode for horizontal left	*/
+/* line, horizontal right line, vertical middle line, and the original	*/
+/* character generator glyph!						*/
+CGENABLE   = !LA1 & !LA0;
+VERTICAL   = !LA1 &  LA0;
+HORIZRIGHT =  LA1 & !LA0; 
+HORIZLEFT  =  LA1 &  LA0;
+
+/*   Now apply these rules to the character generator data.  Note that	*/
+/* the VT1802 video shift register outputs the LSB first, so the left	*/
+/* side are bits 0..3 and right is bits 4..7!  In the VT1802 the LSB of	*/
+/* each glyph (the leftmost pixel) is usually zero - this provides the	*/
+/* one pixel gap between character columns. That means the middle pixel	*/
+/* of the glyph is bit 4.						*/
+VOUT0 = (CGENABLE & VIN0) # HORIZLEFT;
+VOUT1 = (CGENABLE & VIN1) # HORIZLEFT;
+VOUT2 = (CGENABLE & VIN2) # HORIZLEFT;
+VOUT3 = (CGENABLE & VIN3) # HORIZLEFT;
+VOUT4 = (CGENABLE & VIN4) # HORIZLEFT # HORIZRIGHT # VERTICAL;
+VOUT5 = (CGENABLE & VIN5) # HORIZRIGHT;
+VOUT6 = (CGENABLE & VIN6) # HORIZRIGHT;
+VOUT7 = (CGENABLE & VIN7) # HORIZRIGHT;

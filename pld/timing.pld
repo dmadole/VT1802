@@ -1,0 +1,157 @@
+/* timing.pld - Spare Time Gizmos Elf VT1802 Video Timing PLD		*/
+/*									*/
+/*   Copyright (C) 2024 by Robert Armstrong, Milpitas, California.	*/
+/*									*/
+/*  This program is free software; you can redistribute it and/or	*/
+/* modify it under the terms of the GNU General Public License as	*/
+/* published by the Free Software Foundation; either version 2 of the	*/
+/* License, or (at your option) any later version.			*/
+/*									*/
+/*  This program is distributed in the hope that it will be useful, but	*/
+/* WITHOUT ANY WARRANTY; without even the implied warranty of		*/
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU	*/
+/* General Public License for more details.				*/
+/*									*/
+/*   You should have received a copy of the GNU General Public License	*/
+/* along with this program; if not, write to the Free Software		*/
+/* Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111 USA.	*/
+/*									*/
+/* DESCRIPTION								*/
+/*   This GAL generates the correct video timing signals for the VT1802	*/
+/* terminal.  It has two primary outputs - "load video shift register"	*/
+/* for the 74HC166 and the character clock for the 8275.  Normally this	*/
+/* would be pretty easy, but we have an additional feature of being	*/
+/* able to generate the correct timing for character fonts that are any	*/
+/* of 7, 8 or 9 pixels wide. Normally we default to 8 pixels per glyph,	*/
+/* but either 7 or 9 may be selected by grounding the appropriate 	*/
+/* input.  In combination with programming the 8275 timing registers,	*/
+/* this allows us to generate a wide variety of video timings.		*/
+/*									*/
+/* REVISION HISTORY							*/
+/*  5-SEP-24	RLA	New file.					*/
+/*--									*/
+NAME		TIMING;
+PARTNO          TIMING;
+REVISION        A;
+DATE            09/05/24;
+DESIGNER        Robert Armstrong;
+COMPANY         Spare Time Gizmos;
+ASSEMBLY        VT1802;
+LOCATION        U13;
+DEVICE          G16V8;
+
+/* INPUTS... */
+/*   Note that on the 16V8 in registered mode, pin 1 is always the 	*/
+/* clock and pin 11 is always OE.  Unfortunately on the 16V8 you cannot	*/
+/* also use the clock as a pterm input (you can in the 22V10!) so we	*/
+/* also have PCLOCK connected to pin 2 as well.				*/
+/* Pin  1 = PCLOCK; */	/* master pixel clock (12, 11.34 or 14.318MHz)	*/
+Pin  2 = PCLOCK;	/* master pixel clock				*/
+Pin  3 = !SEL_7DOTS;	/* select 7 pixels per font glyph		*/
+Pin  4 = !SEL_9DOTS;	/*   "    9   "     "   "     "			*/
+/* Pin  5 = N/C	*/
+/* Pin  6 = N/C	*/
+/* Pin  7 = N/C	*/
+/* Pin  8 = N/C	*/
+/* Pin  9 = N/C	*/
+/* Pin 11 = N/C */
+SEL_8DOTS = !SEL_7DOTS & !SEL_9DOTS;
+
+/* OUTPUTS... */
+Pin 19 =  Q0;		/* pixels per character counter (LSB)		*/
+Pin 18 =  Q1;		/*   "     "   "     "   "   "			*/
+Pin 13 =  Q2;		/*   "     "   "     "   "   "			*/
+Pin 12 =  Q3;		/*   "     "   "     "   "   "	(MSB)		*/
+/* Pin 17 = N/C */
+Pin 16 = !LOAD_VSR;	/* load video shift register			*/
+Pin 15 =  CCLOCK;	/* character clock to 8275			*/
+/* Pin 14 = N/C */
+
+
+/*   This little state machine counts the pixel clock and generates the	*/
+/* character clock (CCLOCK) and load video shift register (LOAD_VSR)	*/
+/* outputs.  You could change the video to either seven or nine pixels	*/
+/* per character glyph fairly easily just by fiddling with this code.	*/
+/*									*/
+/*   Note that the character clock needs to be fairly long - two whole	*/
+/* pixel times, or about 166ns, to meet the timing requirements of the	*/
+/* 8275 datasheet.  The VSR clock, however, is only half of a PCLOCK!	*/
+FIELD Q = [Q0..Q3];
+sequence Q {
+  /* State 0 finishes the CCLOCK ... */
+  present 'h'0
+    out CCLOCK;
+    default next 'h'1;
+
+  /* States 1..4 just count up ... */
+  present 'h'1
+    default next 'h'2;
+  present 'h'2
+    default next 'h'3;
+  present 'h'3
+    default next 'h'4;
+  present 'h'4
+    default next 'h'5;
+
+  /* For 7 dots/glpyh the next state after 5 is the last! */
+  present 'h'5
+    if (SEL_7DOTS) next 'h'f;
+    default next 'h'6;
+
+  /* For 8 dots/glpyh the next state after 6 is the last! */
+  present 'h'6
+    if (SEL_8DOTS) next 'h'f;
+    default next 'h'7;
+
+  /* And otherwise (9 dots/glyph) the next state after 7 is the last! */
+  present 'h'7
+    default next 'h'f;
+
+  /* These states should never occur... */
+  present 'h'8
+    default next 'h'0;
+  present 'h'9
+    default next 'h'0;
+  present 'h'A
+    default next 'h'0;
+  present 'h'B
+    default next 'h'0;
+  present 'h'C
+    default next 'h'0;
+  present 'h'D
+    default next 'h'0;
+  present 'h'E
+    default next 'h'0;
+
+  /*   The last state outputs CCLOCK and LOAD_VSR for the negative half	*/
+  /* of PCLOCK ...							*/
+  present 'h'F
+    out CCLOCK;
+    if (!PCLOCK) out LOAD_VSR;
+    default next 'h'0;
+}
+
+/*
+FIELD Q = [Q0..Q2];
+sequence Q {
+  present 'D'0
+    out CCLOCK;
+    default next 'D'1;
+  present 'D'1
+    default next 'D'2;
+  present 'D'2
+    default next 'D'3;
+  present 'D'3
+    default next 'D'4;
+  present 'D'4
+    default next 'D'5;
+  present 'D'5
+    default next 'D'6;
+  present 'D'6
+    default next 'D'7;
+  present 'D'7
+    out CCLOCK;
+    if (!PCLOCK) out LOAD_VSR;
+     default next 'D'0;
+}
+*/

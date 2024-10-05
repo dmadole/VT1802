@@ -1,0 +1,242 @@
+OVERVIEW
+--------------------------------------------------------------------------------
+  The VT1802 is a stand alone serial ASCII terminal based on the CDP1802 CPU and the Intel i8275 CRT controller chip.  The VT1802 generates a 80x26 character monochrome text display.  Four different fonts and four character atrributes - reverse video, underline, blinking, and highlight - are supported.  Additionally, the i8275 and VT1802 supports simple drawing codes that can display straight lines, corners, intersections, and simple boxes.
+
+  The VT1802 uses a CDP1854 UART and a CDP1863 baud rate generator.  It can operate at all standard rates from 110 to 9600bps, and can use either CTS/DTR hardware flow control or XON/XOFF software flow control.  A PS/2 keyboard is used for input, and an AT89C4051 auxiliary processor decodes the PS/2 prototocol to generate ASCII key codes.
+
+  The VT1802 contains a second CDP1863 driving a simple two transistor amplifier and speaker.  This can be used to play simple musical tunes.
+
+  The VT1802 firmware also contains a copy of the RCA BASIC3 interpreter and can operate in local mode as a stand alone BASIC computer.  Up to 28K of RAM is available to BASIC for storing programs and data, and programs can be uploaded to or downloaded from a host computer over the serial port using the XMODEM protocol.
+  The VT1802 BASIC has been extended to include functions that allow input and output to be redirected to either the serial port or to the PS/2 keyboard and VT display.  A BASIC PLAY statement allows playing of simple music using the VT1802 sound generator, and the BASIC TIME and WAIT functions keep track of the time of day using VRTC interrupts.   And lastly, a BASIC KEY function allows for non-blocking console input from either the serial port or PS/2 keyboard.
+
+HARDWARE NOTES
+--------------------------------------------------------------------------------
+
+  The approximate memory layout of the VT1802 EPROM is -
+
+	$0000..$3FFF - VT terminal code
+	$4000..$6FFF - BASIC interpreter
+	$7000..$7800 - unused
+	$7800..$7FFB - help text
+	$7FFC..$7FFF - checksum
+
+  DIP switch settings
+
+  SW3 SW2 SW1	BAUD
+   0   0   0	 110
+   0   0   1	 150
+   0   1   0	 300
+   0   1   1	 600
+   1   0   0	1200
+   1   0   1	2400
+   1   1   0	4800
+   1   1   1	9600
+
+  SW4 - ON->7E1 or 2, OFF->8N1 or 2
+  NOTE: One stop bit is automatically selected for baud rates 1200 and up.
+	 Two stop bits are selected for baud rates below 1200.
+
+  SW5 - ON->XON/XOFF flow control, OFF->CTS flow control
+
+  SW7 SW6	STARTUP MODE
+   0   0	TERMINAL ONLINE
+   0   1  	TERMINAL LOCAL
+   1   0  	BASIC ONLINE
+   1   1  	BASIC LOCAL
+
+  SW8 - ON->STARTUP SCREEN, OFF-> NO STARTUP SCREEN
+
+  LEDS
+  The VT1802 contains two LEDs -
+
+  CPU OK - turns on when the 102 firmware finishes initialization and it stays on forever after that, unless there's some major software crash.
+
+  PS/2 OK - turns on when the PS/2 APU firmware finishies initialization.  It turns off whenever the APU has keyboard input waiting for the 1802, and then back on again when the 1802 firmware reads it.  Since the 1802 firmware is interrupt driven, normally you won't see this LED turn off at all, unless something crashes.
+  
+  VIDEO TIMING
+  The i8275 and VT1802 is capable of generating several different video timings with the appropriate firmware and jumper changes.  Two are supported by the current firmware, as controlled by the PIXELCLOCK definition in the Makefile -
+
+  12.000MHz pixel clock - generates an 80 character by 24 line text display with 8 pixels and 10 scan lines per font glyph.  This option has less overscan (i.e. shorter retrace intervals) and generates a better display on a high quality CGA video monitor.
+
+  14.31818MHz pixel clock - generates an 80 character by 26 line text display with 8 pixels and 9 scan lines per font glyph.  In addition to the extra lines, this option generates more overscan (longer retrace intervals) and works better with a standard TV monitor.
+
+  Both options generate standard 60Hz vertical and 15750Hz horizontal timing.  There's an Excel spreadsheet, timing.xls, included in the distribution that you can use to try out different video timing options if you want to experiment.
+
+  IMPORTANT - in the VT1802 the pixel clock is also used to clock the AT89C4051 PS/2 keyboard APU!  Changing the pixel clock affects the timing in the PS/2 firmware and in theory you should rebuild the AT89C4051 firmware when changing it.  In practice though there's a pretty wide lattitude, and anything from 11MHz to 14MHz will work with the standard firmware.
+
+  CONNECTORS
+  SERIAL - RS232 serial port intended to connect to a DB9M (male) connector using a standard IBM PC type serial cable.  Standard RS232 signal levels are used (thanks to the MAX232) and the only pins used are TXD, RXD, CTS, and RTS.  The VT1802 uses CTS for flow control, however RTS is currently ignored by the software.
+  
+  PS/2 - standard IBM PC, AT or PS/2 style keyboard, depending on the connector you provide.  There are only four signals on this connector - +5, ground, clock and data.
+  
+  CGA - this header is intended to connect to a DE9F (female!) connector using a standard PC style ribbon cable.  TTL level video is present on pin 7 (MDA monochrome) as well as pins 3, 4 and 5 (the RED, GREEN and BLUE pins).  separate HSYNC and VSYNC signals are provided on pins 8 and 9.  The INTENSIFY signal (from the 8275 highlight field attribute) is present on pin 6.
+  
+  CVBS - this phono plug carries the analog composite monochrome video, 75 ohm impedance and approximately 1V P-P.
+  
+  SPEAKER - connects to an 8 ohm speaker to carry the sound output from the CDP1863 timer/counter.
+
+TERMINAL EMULATION
+--------------------------------------------------------------------------------
+
+  CONTROL CHARACTERS RECOGNIZED
+  0x05 ^E ENQ - send answerback string
+  0x07 ^G BEL - sound bell tone with the CDP1869
+  0x08 ^H BS  - cursor left (backspace)
+  0x09 ^I HT  - cursor right to next tab stop
+  0x0A ^J LF  - cursor down and scroll up
+  0x0B ^K VT  - same as LF
+  0x0C ^L FF  - home cursor and erase screen
+  0x0D ^M CR  - move cursor to left margin
+  0x0E ^N SO  - select normal character set
+  0x0F ^O SI  - select graphics character set
+  0x1B ^[ ESC - introducer for escape sequences
+
+  STANDARD (VT52) ESCAPE SEQUENCES
+  <ESC>A 	-- cursor up
+  <ESC>B 	-- cursor down
+  <ESC>C 	-- cursor right
+  <ESC>D 	-- cursor left
+  <ESC>E 	-- erase screen
+  <ESC>F 	-- select alternate character Set
+  <ESC>G 	-- select normal character Set
+  <ESC>H 	-- cursor home
+  <ESC>I 	-- reverse line feed
+  <ESC>J 	-- erase to end of screen
+  <ESC>K 	-- erase to end of line
+  <ESC>Nx	-- write field attribute code
+    <ESC>N@	-- Normal video
+    <ESC>NA	-- highlight (bold)
+    <ESC>NB	-- blinking
+    <ESC>NH	-- select alternate font 1
+    <ESC>ND	-- select alternate font 2
+    <ESC>NL	-- select alternate font 3
+    <ESC>NP	-- reverse video
+    <ESC>N 	-- underline (<ESC>N space!, 0x1B 0x4E 0x20)
+  <ESC>Rx	-- raster test (fill screen with 'x')
+  <ESC>Y x y	-- direct cursor addressing
+  <ESC>Z 	-- identify as VT52
+
+  EXTENDED ESCAPE SEQUENCES
+  <ESC>d 	-- display cursor
+  <ESC>h 	-- hide cursor
+  <ESC>lx	-- write line drawing character
+    <ESC>l@	-- top left corner
+    <ESC>lD	-- top right corner
+    <ESC>lH	-- bottom left corner
+    <ESC>lL	-- bottom right corner
+    <ESC>lP	-- top intersect
+    <ESC>lT	-- right intersect
+    <ESC>lX	-- left intersect
+    <ESC>l\	-- bottom intersect
+    <ESC>l`	-- horizontal line
+    <ESC>ld	-- vertical line
+    <ESC>lh	-- crossed lines
+  <ESC>r 	-- enable reverse video
+  <ESC>n 	-- disable reverse video
+  <ESC>v 	-- enable auto newline
+  <ESC>w 	-- disable auto newline
+
+BASIC MODIFICATIONS
+--------------------------------------------------------------------------------
+
+  * ENINT, DISINT and DMAPT have been removed.
+
+  * STQ and QST have been removed.
+
+  * INP, OUT and EF have been removed.
+
+  * RFLN, WFLN and CLOSE have been removed.
+
+  * WAIT works, but the argument is interpreted as 60HZ ticks.
+
+  * BYE exits BASIC for a rudimentary monitor that's built in.
+
+  * DIN/DOUT were changed to SINP/SOUT (for "serial").  TIN/TOUT direct BASIC
+    I/O to the PS/2 keyboard and VT display.  SINP/SOUT direct BASIC I/O to
+    the serial port.   (Note that we can't use "SIN" as a function name, since
+    that's already used for the trig operation!)
+
+  * DIP switch SW6 allows you to select the initial I/O devices for BASIC.
+    SW6=1 -> BASIC uses the serial port for I/O; SW6=0 -> BASIC uses the PS/2
+    keyboard and VT display.  SW6 only affects the INITIAL setting for BASIC
+    I/O; once BASIC is started you can switch I/O with the SIN/SOUT and
+    TIN/TOUT statements.
+
+  * PLOAD, PSAVE, DLOAD and DSAVE use the XMODEM protocol over the serial port.
+    These commands ALWAYS use the serial port regardless of the current SIN/SOUT
+    and TIN/TOUT selection.
+
+  * New keywords added -
+
+	PLAY string	   -> play music
+	KEY		   -> poll console for input
+	TIME		   -> return system uptime in ticks
+
+  * New error codes
+
+	94 -> invalid character in PLAY string
+
+MUSIC Notation for the PLAY string
+--------------------------------------------------------------------------------
+
+
+   The music player takes an ordinary ASCII string and interprets it as a musical notation of sorts.  The letters A..G (or a..g, since case is ignored) refer to the notes A thru G.  Each letter may be followed by a "+" or "#" to indicate a sharp, or a "-" to indicate a flat. "DABF#GDGA" would get you the famous 8 note cello part from Pachelbel's Canon.
+
+   Other characters have special meanings as well.  The digits 1, 2, 4 or 8 specify the note duration - whole note, half note, quarter note or eighth note (notice that larger numbers are shorter intervals!).  Sixteenth notes are unfortunately not possible - sorry!  The note duration must preceed the note ("4D" for a quarter note D, NOT "D4"!) and remain in effect until changed by another digit.  So the string "4DABF" would be ALL quarter notes.
+
+   The "," indicates a rest of the same duration as the current note (e.g. "1," is a whole rest.  A ">" shifts all notes up one octave and "<" shifts all notes down one octave.  The player has an overal range of four octaves, from one octave below middle C to two octaves above, and attempts to shift above or below this range will be ignored.  There is no way to absolutely set the current octave, however something like "<<<<>" would select the octave of middle C.
+
+   Spaces in the string are ignored, and playing terminates when any illegal character, including EOS ('\0'), is encountered.  
+
+   Summary -
+	A, B, C, D, E, F, G - a note to play
+	# or +, -	    - sharp or flat (place AFTER note!)
+	1, 2, 4, 8	    - note length (whole, half, quarter, eighth)
+	>, <		    - shift up or down one octave
+	,		    - rest (silence)
+	<space>		    - ignored
+
+   Note that by tradition a quarter note lasts one beat, so a whole note is 4 beats, a half note is 2 beats, and an eighth note is 1/2 beat.   Yeah, it would have been better to start at the eighth note, but I don't make the rules!  If the tempo is, say 60 beats per minute, then a quarter note is 1 second and a whole note 4 seconds.  Given that we count note times in 60Hz VRTC interrupts, at 60 BPM a whole note would be 240 ticks which is about the longest count we can fit into one byte.  That makes the slowest possible tempo about 60 BPM, which turns out to be pretty reasonable for most music.
+
+   Various examples -
+	GG>DDEED,CC<BBAAG	- Twinkle, Twinkle Little Star
+	DEC<CG			- Close Encounters
+	Beethoven's Ninth, 4th movement (aka Ode to Joy) ...
+	EEFGGFEDCCDEE8D2D4,EEFGGFEDCCDED8C2C4,DDECD8EF4ECD8EF4EDCD<G>,EEFGGFEDCCDED8C2C
+
+VT1802 BUILT IN DEBUG MONITOR
+--------------------------------------------------------------------------------
+
+E[xamine] addr			-- examine one byte
+E[xamine] addr1 addr2		-- dump a range of bytes
+D[eposit] addr data [data ...]	-- deposit data in memory
+REG[isters]			-- show registers after trap
+IN[put] port			-- read data from a group 1 port
+OUT[put] port data		-- write data to a group 1 port
+SPL[ash]			-- display splash screen
+PL[ay]				-- play music string
+ODE				-- play demo music
+TIN				-- switch console input to PS/2
+SIN				-- switch console input to serial
+TOUT				-- switch console output to VT
+SOUT				-- switch console output to serial
+TERM				-- enter terminal emulation
+KEY[test]			-- echo PS/2 keyboard input
+XS[ave]				-- save memory with XMODEM
+XL[oad]				-- download memory with XMODEM
+BAS[ic]				-- start BASIC3 interpreter
+HEL[p]				-- print this text
+:llaaaattdddd..cc		-- load an INTEL hex record
+; any text			-- comment command procedures
+^C				-- cancel current command line
+<BREAK>				-- interrupt execution of long commands
+
+STUFF THAT NEEDS TO BE DONE!
+--------------------------------------------------------------------------------
+
+  * Add auto newline <ESC>v and w.
+  * Distinguish between auto new line and auto line wrap?
+  * Cleanup the startup code and remove some of the junk commands.
+  * Expect an 1805 CPU and try to speed up the code by replacing the macros
+    with built-in 1805 instructions, especially RLDI, SCAL, SRET, etc.
+  

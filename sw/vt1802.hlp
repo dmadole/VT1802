@@ -1,0 +1,84 @@
+#++
+# vt1802.hlp - Help text for Spare Time Gizmos VT1802 video terminal
+#
+# Copyright (C) 2024 by Spare Time Gizmos.  All rights reserved.
+#
+# This firmware is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by the Free
+# Software Foundation; either version 2 of the License, or (at your option)
+# any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+# FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+# more details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+# Place, Suite 330, Boston, MA  02111-1307  USA
+#
+#DESCRIPTION:
+#   This text file is the source for monitor firmware that's built in to the
+# VT1802 video display.  This text is what you see when you type the monitor
+# "HELP" command.  This file is converted to a .HEX image by the romtext
+# program and then merged into the EPROM image by rommerge.
+#
+#IMPORTANT!
+#   Lines which begin with a "#" are comments and are completely discarded by
+# the romtext program, up to and including the newline at the end.  EVERYTHING
+# ELSE, including spaces, tabs, newlines, EVERYTHING, gets put into the EPROM!
+#
+# REVISION HISTORY:
+# dd-mmm-yy	who     description
+# 10-MAY-24	RLA	New file.
+#  1-OCT-24	RLA	Update with the latest commands.
+#--
+MEMORY COMMANDS
+    E[xamine] addr			-- examine one byte
+    E[xamine] addr1 addr2		-- dump a range of bytes
+    D[eposit] addr data [data ...]	-- deposit data in memory
+    XS[ave] ssss eeee			-- save memory via XMODEM
+    XL[oad] ssss eeee			-- load memory via XMODEM
+    REG[isters]				-- show registers after trap
+    :xxxxxxxxxxxx...			-- load Intel .HEX format files
+
+I/O COMMANDS
+    IN[put] port	-- read data from a port
+    OUT[put] port data	-- write data to a port
+
+TERMINAL COMMANDS
+    TERM		-- enter terminal emulator
+    TIN			-- select PS/2 keyboard for input
+    SIN			-- select serial port for input
+    TOUT		-- select video display for output
+    SOUT		-- select serial port for output
+
+SOUND COMMANDS
+    PL[ay] text		-- play a melody
+    ODE			-- play demo tune
+
+OTHER COMMANDS
+    BAS[ic]		-- start BASIC3 interpreter
+    SPL[ash]		-- display the startup splash screen
+    HE[lp]		-- print this text
+    ; any text		-- comment command procedures
+    ^C			-- cancel current command line
+
+DIP SWITCH SETTINGS
+  SW3 SW2 SW1  BAUD
+   0   0   0    110
+   0   0   1    150
+   0   1   0    300
+   0   1   1    600
+   1   0   0   1200
+   1   0   1   2400
+   1   1   0   4800
+   1   1   1   9600
+  SW4 - ON->7E1 or 2, OFF->8N1 or 2
+  SW5 - ON->XON/XOFF flow control, OFF->CTS flow control
+  SW7 SW6 STARTUP MODE
+   0   0  TERMINAL ONLINE
+   0   1  TERMINAL LOCAL
+   1   0  BASIC ONLINE
+   1   1  BASIC LOCAL
+  SW8 - ON->STARTUP SCREEN, OFF->NO STARTUP SCREEN
