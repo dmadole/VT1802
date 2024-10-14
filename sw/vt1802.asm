@@ -118,9 +118,35 @@
 ;
 ; 017	-- Implement <ESC>Z (identify) and Control-E (ENQ).  Both return the
 ;	    sequence <ESC>/K (VT52 w/o copier).
+;
+; 018	-- Disable interrupts in SCRUP and SCRDWN while we mess with TOPLIN.
+;
+; 019	-- Change the ROWEND ISR to test for DMAPTR .GE. SCREND .
+;
+; 020	-- Make VTPUTC trim all characters, EXCEPT the subsequent bytes of
+; 	    escape sequences, to 7 bits.
+;
+; 021	-- Firmware crashes when we receive a null!  There's a missing
+;	    "SEX SP" in VTPUTC.
+;
+; 022	-- Serial interrupts always set the UART to 8N1 when clearing the TR
+;	    bit.  Remember the actual format in SLUFMT and use that instead.
+;
+; 023	-- Implement TXSBRK and make the terminal emulator transmit a serial
+;	    break with the PS/2 BREAK key is pressed.
+;
+; 024	-- Make the PS/2 MENU key exit from terminal emulation and start the
+;	    command scanner.  This works in any mode.
+;
+; 025	-- Fill the part of the screen after the last displayed character with
+;	    i8275 "end of screen stop DMA" control codes.  This helps stop
+; 	    screen flicker when there's a lot of serial port interrupts.
+;
+; 026	-- If flow control is used, SERCLR needs to enable the other end (by
+;	    setting CTS or sending an XON).
 ;--
 VERMAJ	.EQU	1	; major version number
-VEREDT	.EQU	17	; and the edit level
+VEREDT	.EQU	26	; and the edit level
 
 	.SBTTL	VT1802 Hardware Definitions
 
@@ -134,7 +160,7 @@ HLPTXT	 .EQU $7800		; help text stored here in EPROM
 RAMBASE	 .EQU $8000	   	; RAM starts at $8000
 RAMSIZE  .EQU $8000	   	;  ... 32K of RAM
 RAMEND   .EQU RAMBASE+RAMSIZE-1	;  ... address of the last byte in RAM
-SCRNSIZE .EQU 2080		; size of display frame buffer
+SCRNSIZE .EQU 2100		; size of display frame buffer (worst case!)
 DPBASE   .EQU RAMEND-SCRNSIZE-512+1; our data occupies the last part of RAM
 
 ; I/O ports implemented on the VT1802 ...
@@ -193,7 +219,12 @@ CC.VDEN	.EQU	$04	; video enable
 CC.DMAU	.EQU	$02	; DMA underrun
 CC.FIFO	.EQU	$01	; FIFO overrun
 
-; i8275 character attribute codes ...
+; i8275 CRTC character codes ...
+CC.LINE	.EQU	$C0	; line drawing code
+CC.EORS	.EQU	$F1	; end of row, stop DMA
+CC.EOSS	.EQU	$F3	; end of screen, stop DMA
+
+; i8275 field attribute codes ...
 HLGTATTR .EQU	$81	; highlight
 BLNKATTR .EQU	$82	; blink
 GPA1ATTR .EQU	$84	; general purpose attribute 1
@@ -483,7 +514,13 @@ DLYCONS	.EQU	223		; magic constant for 2ms at 3.579545MHz
 ; a small chunk of that.  We'd like to jam our memory up against the top end
 ; of RAM so that the part from $8000 and up can be used by BASIC or whatever
 ; other interesting things we have in EPROM.
+;
+;   Lastly, note that BASIC3 sets its "RAMTOP" to $F500-1, and so our DPBASE
+; cannot be less than that (unless you fix BASIC too!).
 ;--
+	.IF	DPBASE < $F500
+	.ECHO	"**** DPBASE TOO LOW - FIX BASIC! *****\n"
+	.ENDIF
 	.ORG	DPBASE
 
 ;   This is the ASCII frame buffer and contains all the characters on the
@@ -491,9 +528,14 @@ DLYCONS	.EQU	223		; magic constant for 2ms at 3.579545MHz
 ; from here.  Note that there is a table at LINTAB: which must contain at least
 ; MAXROW entries.  If you change MAXROW, it might be a good idea to check that
 ; table too!
-SCREEN:	.BLOCK	SCRNSIZE	; the whole screen lives here!
-SCREND	.EQU	SCREEN+(MAXROW*MAXCOL)
-	.IF	(MAXROW*MAXCOL) > SCRNSIZE
+;
+;   Note that it's important that the actual frame buffer be a little bit larger
+; (at least one byte) than MAXROW*MAXCOL.  That's so we have a place to store
+; the i8275 "end of screen, stop DMA" code.
+SCREEN:	.BLOCK	SCRNSIZE		; the whole screen lives here!
+SCRMAX:					; actual end of the frame buffer
+SCREND	.EQU	SCREEN+(MAXROW*MAXCOL)	; part of frame buffer actively used
+	.IF	(MAXROW*MAXCOL) >= SCRNSIZE
 	.ECHO	"**** SCRNSIZE TOO SMALL! *****\n"
 	.ENDIF
 
@@ -514,6 +556,7 @@ FRAME:	.BLOCK	1	; incremented by the end of frame ISR
 TTIMER:	.BLOCK	1	; timer for tones and ^G bell beeper
 SERBRK:	.BLOCK	1	; serial port break flag
 UPTIME:	.BLOCK	4	; total time (in VRTC ticks) since power on
+SLUFMT:	.BLOCK	1	; serial port format (8N1 or 7E1)
 
 ; Flags from the keyboard input routine ...
 ; DON'T CHANGE THE ORDER OR GROUPING OF THESE!!
@@ -1387,10 +1430,10 @@ TERM:	RLDI(T1,KEYBRK)\ SEX T1	; clear both the KEYMNU and KEYBRK flags
 	RLDI(T1,SERBRK)		; and clear the serial break flag too
 	LDI 0\ STR T1		; ...
 
-TERM1:	RLDI(T1,KEYMNU)\ LDN T1	; was the menu key pressed ?
-	LBNZ	MAIN		; yes - start the command scanner
-	RLDI(T1,SERBRK)\ LDN T1	; was a break received on the serial port?
-	LBNZ	MAIN		; yes ...
+TERM1:	CALL(ISKMNU)		; was the menu key pressed ?
+	LBDF	TERM4		; yes - start the command scanner
+	CALL(ISSBRK)		; was a break received on the serial port?
+;;	LBDF	TERM1		; yes - ignore it
 
 ; Check the serial port for input first ...
 	CALL(SERGET)		; anything in the buffer
@@ -1398,13 +1441,24 @@ TERM1:	RLDI(T1,KEYMNU)\ LDN T1	; was the menu key pressed ?
 	CALL(VTPUTC)		; yes - send this character to the screen
 
 ; Check the PS/2 keyboard for input ...
-TERM2:	CALL(GETKEY)		; anything waiting from the keyboard?
+TERM2:	CALL(ISKBRK)		; was the BREAK key pressed ?
+	LBDF	TERM3		; yes - send a break on the serial port
+	CALL(GETKEY)		; anything waiting from the keyboard?
 	LBDF	TERM1		; no - back to checking the serial port
 	CALL(SERPUT)		; yes - send it to the serial port
 	LBR	TERM1		; and keep going
 
+; Here when the PS/2 keyboard BREAK key is pressed ...
+TERM3:	CALL(TXSBRK)		; send a break on the serial port
+	LBR	TERM1		; and then continue
+
+; Here when the PS/2 keyboard MENU key is pressed ...
+TERM4:	OUTSTR(TEMSG)		; print a message
+	LBR	MAIN		; and start up the command scanner
+
 ; Messages ...
 TTMSG:	.TEXT	"[TERMINAL MODE]\r\n\000"
+TEMSG:	.TEXT	"\r\n\n[COMMAND MODE]\r\n\000"
 
 	.SBTTL	Start BASIC Interpreter
 
@@ -1767,22 +1821,21 @@ VTPUTC:	PHI AUX\ SEX SP		; save character in a safe place
 	LBNZ	VTPUT2		; jump if we're processing an escape sequence
 
 ; This character is not part of an escape sequence...
-	LDX\ ANI $7F		; get the original character back
-	LBZ	VTPUT9		; ignore null characters
-	XRI	$7F		; and ignore RUBOUTs too
-	LBZ	VTPUT9		; ...
-	LDX\ SMI ' '		; is this a control character ?
+	GHI AUX\ ANI $7F	; trim to 7 bits
+	PHI AUX\ LBZ VTPUT9	;  ... and ignore null characters
+	XRI $7F\ LBZ VTPUT9	;  ... ignore RUBOUTs too
+	GHI AUX\ SMI ' '	; is this a control character ?
 	LBL	VTPUT1		; branch if yes
 
 ; This character is a normal, printing, character...
-	LDX\ CALL(NORMAL)	; display it as a normal character
+	GHI AUX\ CALL(NORMAL)	; display it as a normal character
 
 ;   And return...  It's a bit of extra work, but it's really important that
 ; we return the same value in D that we were originally called with.  Some
 ; code depends on this!
 VTPUT9:	RLDI(T1,CURCHR)		; gotta get back the original data
 	LDN T1\ PHI AUX		; save it for a moment
-	IRX\ POPR(P1)		; restore the registers we saved
+	SEX SP\ IRX\ POPR(P1)	; restore the registers we saved
 	POPR(T2)		; ...
 	POPRL(T1)		; ...
 ;  It's critical the we return with DF=0 for compatibility with SERPUT.  If
@@ -1790,7 +1843,7 @@ VTPUT9:	RLDI(T1,CURCHR)		; gotta get back the original data
 	CDF\ GHI AUX\ RETURN	; and we're done!
 
 ; Here if this character is a control character...
-VTPUT1:	LDX			; restore the original character
+VTPUT1:	GHI	AUX		; restore the original character
 	CALL(LBRI)		; and dispatch to the correct routine
 	 .WORD	 CTLTAB		; ...
 	LBR	VTPUT9		; then return normally
@@ -1831,7 +1884,7 @@ NORMAL:	PUSHD			; save the character for a minute
 
 ; Now store the character in memory (finally!)
 NORMA1:	CALL(WHERE)		; calculate the address of the cursor
-	POPD\ STR P1		; then write the character there
+	POPD\ ANI $7F\ STR P1	; then write the character there
 
 ;   After storing the character we want to move the cursor right.  This could
 ; be as simple as just calling RIGHT:, but but that will stop moving the cursor
@@ -2078,7 +2131,8 @@ WLINE1:	LDI 0\ CALL(ESCNXT)	; end of escape sequence
  	RLDI(T1,CURCHR)\ LDN T1	; and then get the current character
 	ANI $30\ XRI $30	; disallow the 8275 special function codes!
 	LBZ	WLINE2		;  ... just ignore them
-	LDN T1\ ANI $3F\ ORI $C0; ok - make it into a character attribute code
+	LDN	T1		; ok - make it into a character attribute code
+	ANI $3F\ ORI CC.LINE	; ...
 	PUSHD			; save it on the stack for NORMA1
 	LBR	NORMA1		; and then go store it in screen memory
 WLINE2:	RETURN			; just ignore illegal characters
@@ -2116,7 +2170,7 @@ IDENT3:	CALL(SERPUT)		; ...
 ;--
 RTEST:	LDI ERNEXT\ LBR ESCNXT	; wait for the next byte
 
-; Here with the raster test character in CURCUR...
+; Here with the raster test character in CURCHR...
 RTEST1:	LDI 0\ CALL(ESCNXT)	; first set ESCSTA to zero
 	RLDI(T1,CURCHR)\ LDN T1	; then get the current character
 	SMI ' '\ LBNF ERASE	; make sure it is a printing character
@@ -2358,13 +2412,15 @@ RLF:	RLDI(T1,CURSY)\ LDN T1	; is it on the top of the screen ?
 ; Note that this routine does not change the cursor location (normally it
 ; won't need to be changed).
 ;--
-SCRUP:	RLDI(T1,TOPLIN)		; get the current top line on the screen
+SCRUP:	IOFF			; no video interrupts while we mess with TOPLIN
+	RLDI(T1,TOPLIN)		; get the current top line on the screen
 	LDN T1\ PLO P1		; and remember that for later
 	ADI 1\ STR T1		; then move the top line down to the next line
 	SMI	MAXROW		; do we need to wrap the line counter around ?
 	LBNF	SCRUP1		; jump if not
 	LDI 0\ STR T1		; yes -- reset back to the first line
-SCRUP1:	GLO	P1		; then get back the number of the bottom line
+SCRUP1:	ION			; interrupts are safe again
+	GLO	P1		; then get back the number of the bottom line
 	CALL(LINADD)		; calculate its address
 	LBR	CLRLIN		; and then go clear it
 
@@ -2375,11 +2431,13 @@ SCRUP1:	GLO	P1		; then get back the number of the bottom line
 ; Note that this routine does not change the cursor location (normally it
 ; won't  need  to be changed).
 ;--
-SCRDWN:	RLDI(T1,TOPLIN)		; get the line number of the top of the screen
+SCRDWN:	IOFF			; no interrupts until TOPLIN is safe
+	RLDI(T1,TOPLIN)		; get the line number of the top of the screen
 	LDN T1\ SMI 1		; and move it down one line
 	LBDF	SCRDW1		; jump if we don't need to wrap around
 	LDI	MAXROW-1	; wrap around to the other end of the screen
-SCRDW1: STR	T1		; update the top line on the screen
+SCRDW1:	ION			; TOPLIN is safe again
+	STR	T1		; update the top line on the screen
 	CALL(LINADD)		; calculate the address of this line
 	LBR	CLRLIN		; and then go clear it
 
@@ -2394,18 +2452,30 @@ ERASE:	LDI	' '		; fill the screen with a blank character
 
 ;++
 ;   This is a local routine to home the cursor and fill the screen with the
-; character contained in D.
+; character contained in D.  Note that the actual frame buffer is larger than
+; the number of characters that can be displayed on the screen, and the 
+; remainder of the frame buffer is filled with i8275 "end of screen, stop DMA"
+; control codes.  This helps to stop screen flickering if the end of row
+; interrupts are delayed.
 ;--
 FILL:	PUSHD			; save the fill character for a while
 	CALL(HOME)		; go move the cursor to home
 	POPD\ PLO T1		; get the fill character back
 	RLDI(T2,SCREEN)		; then point to the start of the screen space
+; Fill the active area of the screen with whatever character was given ...
 FILL1:	GLO T1\ STR T2\ INC T2	; fill this location
 	GHI T2\ XRI HIGH(SCREND); have we reached the end of the screen?
 	LBNZ	FILL1		; no - keep going
 	GLO T2\ XRI LOW(SCREND)	; ???
 	LBNZ	FILL1		; ...
-	RETURN			; all done!
+; And fill the rest of the frame buffer with i8275 end of screen codes ...
+FILL2:	LDI	CC.EOSS		; end of screen code
+	STR T2\ INC T2		; ...
+	GHI T2\ XRI HIGH(SCRMAX); end of frame buffer ?
+	LBNZ	FILL2		; no - keep going
+	GLO T2\ XRI LOW(SCRMAX)	; ???
+	LBNZ	FILL2		; ...
+	RETURN			; finally - all done!
 
 	.SBTTL	Screen Erase Functions
 
@@ -3653,7 +3723,6 @@ RSTIO1:	CALL(SIN)		; SW6=0 -> select serial port for input
 	LBR	SOUT		;  ... and serial port for output
 
 	.SBTTL	Interrupt Service Routine
-;;; FOR ALIGNMENT	PAGE
 
 ;++
 ;   This is the CDP1802 interrupt service routine, and in the VT1802 it gets
@@ -3719,11 +3788,11 @@ ISR:	DEC SP\ SAV		; push T (the saved X,P)
 ; the end of each row...
 ;--
 ROWEND:	GHI	DMAPTR		; get the high byte of the DMA pointer
-	XRI	HIGH(SCREND)	; have we reached the end of the screen buffer?
-	BNZ	ISR1		; continue with interrupt processing if not
+	SMI	HIGH(SCREND)	; have we reached the end of the screen buffer?
+	BL	ISR1		; continue with interrupt processing if not
 	GLO	DMAPTR		; do the same for the low byte
-	XRI	LOW(SCREND)	; ...
-	BNZ	ISR1		; ...
+	SMI	LOW(SCREND)	; ...
+	BL	ISR1		; ...
 	RLDI(DMAPTR,SCREEN)	; reset the DMA pointer back to the start
 
 ;   Now continue with interrupt processing by attempting to indentify the
@@ -3904,8 +3973,9 @@ SLUI10:	RLDI(T1,TXGETP)\ LDA T1	; load the GET pointer
 ; need to clear the TR bit.  That alone doesn't do much, however the next
 ; time we have something to transmit then SERPUT will set the TR bit and
 ; that will cause another THRE interrupt to start the process again.
-SLUIS2:	SEX INTPC\ OUT SLUCTL	; DON'T use OUTI!
-	.BYTE	SL.8N1+SL.IE	;  ... clear TR
+SLUIS2:	RLDI(T1,SLUFMT)\ LDN T1	; get the current SLU format bits
+	STR SP\ SEX SP		; store it on the stack
+	OUT SLUCTL\ DEC SP	; and clear TR
 				; and fall into SLUIS3
 
 ;   Here after we've checked both the receiver and transmitter.  The CDP1854
@@ -4066,6 +4136,8 @@ SERPUW:	CALL(SERPUT)		; try to buffer this character
 	LBDF	SERPUW		; keep waiting until space is available
 	RETURN			; ...
 
+	.SBTTL	Serial Port Break Routines
+
 ;++
 ;   Test the serial port break flag and return DF=1 (and also clear the flag)
 ; if it's set. 
@@ -4079,7 +4151,87 @@ ISSBR1:	CDF			; return DF=0
 	IRX\ POPRL(T1)		; restore T1
 	RETURN			; and we're done
 
+;++
+;   Transmit a break on the serial port by setting the FORCE BREAK bit in the
+; CDP1854 control register.  This will force the UART's TXD output low to
+; transmit a space condition for as long as the force break bit is set.
+; To be detected by the other end we have to remain in this condition for at
+; least as long as one character time.  A shorter time may not work, but longer
+; does no harm (except to slow things down).
+;
+;   The way you time this with most UARTs is to set the force break bit and
+; then transmit some arbitrary data byte.  The byte never actually gets sent
+; (because TXD is held low) but the shift register timing still works and we
+; can simply wait for that to finish.  Unfortunately, this DOESN'T WORK with
+; the CDP1854!  The 1854 freezes the transmitter entirely while the force
+; break bit is set, and nothing will happen with the transmitter status as
+; long as it is.
+;
+;   So we're stuck with timing the interval manually, and we have to be sure
+; that it's longer than the time it would take to transmit one byte at the
+; slowest baud rate we support.  Worse, once we clear the force break bit,
+; the CDP1854 needs us to transmit a byte, which will be turned into garbage
+; by the other end since there will be no start bit, to finally and completely
+; clear the break condition.  Seems like RCA could have done better!
+;--
+TXSBRK:	PUSHR(T1)		; save a temporary register
+; Set the force break bit in the CDP1854 ...
+	RLDI(T1,SLUFMT)\ LDN T1	; get the current SLU character format
+	ANI ~SL.IE\ ORI SL.BRK	; clear IE and set break
+	STR	SP		; save for out
+	OUT SLUCTL\ DEC SP	; write the UART control register
+; Now delay for 100ms ...
+	LDI 50\ PLO T1		; 50 iterations ...
+TXSBR2:	DLY2MS			; ... of a 2ms delay
+	DEC T1\ GLO T1		; ...
+	LBNZ	TXSBR2		; ...
+; Reset the CDP1854 control register and clear the force break bit ...
+	LDN	SP		; it's still on the stack!
+	ANI ~SL.BRK\ ORI SL.IE	; ...
+	STR	SP		; ...
+	OUT SLUCTL\ DEC SP	; ...
+;   The CDP1854 needs us to transmit a byte, which will be turned into garbage
+; by the other end since there will be no start bit, to finally and completely
+; clear the break condition.  Note that we don't bother to check THRE here -
+; we've just delayed for 100ms; I'm pretty sure it's done now!
+	LDI 0\ STR SP		; transmit a null byte
+	OUT SLUBUF\ DEC SP	;  ...
+; Finish by flushing the serial buffers ...
+TXSBR4:	CALL(SERCLR)		; flush the TX and RX buffers
+	IRX\ POPRL(T1)		; restore T1
+	RETURN			; and we're done
+
 	.SBTTL	Initialize Serial Port
+
+;++
+;   This routine will clear the serial port buffers, both transmit and receive.
+; Any characters currently in the buffers are lost!  If flow control is enabled,
+; then we will re-enable the other end (either by asserting CTS or sending XON)
+; immediately after we're done.
+;--
+SERCLR:	PUSHR(T1)		; save a temporary
+	RLDI(T1,RXPUTP)		; point to the buffer pointers
+	IOFF			; no interrupts while we mess with the pointers
+	LDI 0\ SEX T1		; ...
+	STXD\ STXD		; clear RXPUTP and RXGETP
+	STXD\ STXD		; clear TXPUTP and TXGETP
+	RLDI(T1,TXONOF)		; clear the XON/XOFF flow control state
+	LDI 0\ STXD		; ...
+	DEC T1\ STXD		; and clear RXBUFC too
+	ION			; interrupts are safe again
+	RLDI(T1,FLOCTL)\ LDN T1	; see if flow control is enabled
+	LBZ	SERCL9		; not enabled
+	XRI $FF\ LBZ SERCL1	; branch if XON/XOFF flow control
+; Here for CTS flow control ...
+	OUTI(FLAGS, FL.SCTS)	; yes - enable CTS again
+	LBR	SERCL9		; and we're done
+;   Here for XON/XOFF flow control ...  Note that this ALWAYS sends an XON, 
+; even if no XOFF has recently been sent.  This should be harmless!
+SERCL1:	INC T1\ LDI 1\ STR T1	; send an XON ASAP
+	OUTI(SLUCTL, SL.TR)	; and always set the TR bit
+SERCL9:	SEX SP\ IRX\ POPRL(T1)	; restore T1
+	RETURN			; and we're done here
+
 
 ;++
 ;   This routine will initialize the CDP1854 serial port and CDP1963 baud rate
@@ -4114,6 +4266,8 @@ SERIN2:	LDI SL.8N1\ STR SP	; select no parity and 8 data bits
 	GLO T1\ OR		; and OR those with the stop bit select
 	ORI SL.IE\ STR SP	; always set interrupt enable
 	OUT SLUCTL\ DEC SP	; write the UART control register
+	RLDI(T1,SLUFMT)		; and save the UART settings here
+	LDN SP\ STR T1		;  ... for later
 
 ; Select XON/XOFF or CTS flow control according to SW5 ...
 	RLDI(T1,FLOCTL)		; point at the flow control flag
@@ -4135,33 +4289,6 @@ BAUDS:	.BYTE	BAUD_DIVISOR( 110)	; 0   0   0	 110
 	.BYTE	BAUD_DIVISOR(2400)	; 1   0   1	2400
 	.BYTE	BAUD_DIVISOR(4800)	; 1   1   0	4800
 	.BYTE	BAUD_DIVISOR(9600)	; 1   1   1	9600
-
-;   This is a table of baud rate names to show the status on the splash screen.
-; Unfortunately we don't have a decimal print routine, so these are stored in
-; plain ASCII ...
-BAUDN:	.WORD	BD110N, BD150N, BD300N, BD600N
-	.WORD	BD1K2N, BD2K4N,	BD4K8N, BD9K6N
-BD110N:	.TEXT	 "110\000"
-BD150N:	.TEXT	 "150\000"
-BD300N:	.TEXT	 "300\000"
-BD600N:	.TEXT	 "600\000"
-BD1K2N:	.TEXT	"1200\000"
-BD2K4N:	.TEXT	"2400\000"
-BD4K8N:	.TEXT	"4800\000"
-BD9K6N:	.TEXT	"9600\000"
-
-;   And this is a table of the format names selected by SW3, SW4 and SW5.
-; Like BAUDN, this is used to display the serial status on the splash screen.
-FMTN:	.WORD	FM8N2, FM8N1, FM8E2, FM8E1
-	.WORD	FM7N2, FM7N1, FM7E2, FM7E1
-FM8N2:	.TEXT	"8N2\000"
-FM8N1:	.TEXT	"8N1\000"
-FM8E2:	.TEXT	"8E2\000"
-FM8E1:	.TEXT	"8E1\000"
-FM7N2:	.TEXT	"7N2\000"
-FM7N1:	.TEXT	"7N1\000"
-FM7E2:	.TEXT	"7E2\000"
-FM7E1:	.TEXT	"7E1\000"
 
 	.SBTTL	Keyboard Buffer Routines
 
@@ -4252,12 +4379,20 @@ KEYGE1:	SDF			; buffer empty - return DF=1
 ;--
 ISKBRK:	PUSHR(T1)		; save a temporary
 	RLDI(T1,KEYBRK)\ LDN T1	; get the flag setting
-	LBZ	ISKBR1		; branch if it's not set
+ISKBR0:	LBZ	ISKBR1		; branch if it's not set
 	LDI 0\ STR T1		; clear the flag
 	SDF\ LSKP		; and return DF=1
 ISKBR1:	CDF			; return DF=0
 	IRX\ POPRL(T1)		; restore T1
 	RETURN			; and we're done
+
+;++
+;   Test the keyboard menu flag and return DF=1 (and also clear the flag) if
+; it's set.
+;--
+ISKMNU:	PUSHR(T1)		; save a temporary
+	RLDI(T1,KEYMNU)\ LDN T1	; get the flag setting
+	LBR	ISKBR0		; and the rest is the same as ISKBRK
 
 	.SBTTL	Keyboard Escape Code Table
 
@@ -4727,7 +4862,6 @@ XRDBK3:	IRX\ POPR(T3)		; restore all those registers
 ; back to the PC, and then pops the previous A value from the stack.  Lastly
 ; it switches the P register back to R3 and we're back at the caller's location.
 ;--
-	PAGE ; for alignment
 
 ; Standard subroutine call ... 18 bytes ...
 	SEP	PC		; start the subroutine running
