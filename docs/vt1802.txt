@@ -64,6 +64,24 @@ HARDWARE NOTES
 
   IMPORTANT - in the VT1802 the pixel clock is also used to clock the AT89C4051 PS/2 keyboard APU!  Changing the pixel clock affects the timing in the PS/2 firmware and in theory you should rebuild the AT89C4051 firmware when changing it.  In practice though there's a pretty wide lattitude, and anything from 11MHz to 14MHz will work with the standard firmware.
 
+  CPU CLOCK
+  Normally the CPU clock is connected to the 2.4567MHz baud rate clock by installing jumper JP9.  If you select this option, then do not install Y1, C1, C11 or R2.   However if you wish you can select a different CPU clock by removing JP9 and installing Y1, C1, C11 and R2.
+
+  The video timing is unaffected by the CPU clock and, providing that the 1802 can keep up with the refresh requirements, any CPU frequency should work.  However be aware that the CDP1863 tone generator is clocked by TPB so changing the CPU clock will change all the tone frequencies.  You'll need to adjust the firmware and rebuild it to compensate for that.
+
+  JUMPERS
+  JP1 and JP2 select the number of horizontal pixels per font glyph.  If JP1 is installed then 7 dots are selected; if JP2 is installed then 9 dots are selected.  If neither is installed, 8 dots are selected.  The latter, 8 dots, is the default for all current firmware and fonts.
+
+  JP3 and JP6 select the polarity of the horizontal and vertical sync signals, respectively.  For a standard CGA monitor both of these should be positive.  Note that these jumpers affect only the TTL level CGA output, and have no effect on the CVBS composite video output.
+
+  JP4 if installed tells the PS/2 APU to swap the functions of the CAPS LOCK and CONTROL keys.  JP4 removed leaves these keys as labeled.
+  
+  JP5 allows the speaker to be driven either by the CDP1863 tone generator or directly by the 1802 Q output.  The current firmware only supports the first, CDP1863 tone generator, option.
+  
+  JP7 and JP8 allow the use of the 8275 GPA (general purpose attribute) bits as extra font selection bits.  By default the firmware supports this, and these should be installed.
+
+  JP9 installed selects the 2.4576MHz baud clock as the CPU clock.
+
   CONNECTORS
   SERIAL - RS232 serial port intended to connect to a DB9M (male) connector using a standard IBM PC type serial cable.  Standard RS232 signal levels are used (thanks to the MAX232) and the only pins used are TXD, RXD, CTS, and RTS.  The VT1802 uses CTS for flow control, however RTS is currently ignored by the software.
   
@@ -97,21 +115,21 @@ TERMINAL EMULATION
   <ESC>C 	-- cursor right
   <ESC>D 	-- cursor left
   <ESC>E 	-- erase screen
-  <ESC>F 	-- select alternate character Set
-  <ESC>G 	-- select normal character Set
+  <ESC>F 	-- select alternate character set
+  <ESC>G 	-- select normal character set
   <ESC>H 	-- cursor home
   <ESC>I 	-- reverse line feed
   <ESC>J 	-- erase to end of screen
   <ESC>K 	-- erase to end of line
   <ESC>Nx	-- write field attribute code
-    <ESC>N@	-- Normal video
-    <ESC>NA	-- highlight (bold)
+    <ESC>N@	-- normal video
+    <ESC>NA	-- highlight (bold or dim)
     <ESC>NB	-- blinking
     <ESC>NH	-- select alternate font 1
     <ESC>ND	-- select alternate font 2
     <ESC>NL	-- select alternate font 3
     <ESC>NP	-- reverse video
-    <ESC>N 	-- underline (<ESC>N space!, 0x1B 0x4E 0x20)
+    <ESC>N 	-- underline (<ESC> N space!, 0x1B 0x4E 0x20)
   <ESC>Rx	-- raster test (fill screen with 'x')
   <ESC>Y x y	-- direct cursor addressing
   <ESC>Z 	-- identify as VT52
@@ -230,13 +248,3 @@ HEL[p]				-- print this text
 ; any text			-- comment command procedures
 ^C				-- cancel current command line
 <BREAK>				-- interrupt execution of long commands
-
-STUFF THAT NEEDS TO BE DONE!
---------------------------------------------------------------------------------
-
-  * Add auto newline <ESC>v and w.
-  * Distinguish between auto new line and auto line wrap?
-  * Cleanup the startup code and remove some of the junk commands.
-  * Expect an 1805 CPU and try to speed up the code by replacing the macros
-    with built-in 1805 instructions, especially RLDI, SCAL, SRET, etc.
-  
