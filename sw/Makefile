@@ -40,8 +40,6 @@
 # Tool paths and options - you can change these as necessary...
 TASM=D:/bob/bin/tasm/tasm
 export TASMTABS=D:/bob/bin/tasm/
-TASMOPTS=-t1802 -x1 -lat -g0 -i -p44 \
-	 -DTASM -DVT1802 -DCPUCLOCK=3579545 -DPIXELCLOCK=14318180
 A18=d:/bob/bin/a18
 ROMMERGE=D:/bob/bin/rommerge.exe
 ROMCKSUM=D:/bob/bin/romcksum.exe
@@ -50,6 +48,12 @@ ZIP=C:/Program Files/7-Zip/7z.exe
 RM=C:/cygwin64/bin/rm.exe
 ECHO=C:/cygwin64/bin/echo.exe
 DATE=C:/cygwin64/bin/date.exe
+
+#    VT1802 assembly options.  Note that the only support CPUCLOCKS are
+# 2.4576MHz or 3.579545MHz, and the only supported PIXELCLOCKs are 14.31818MHz
+# or 12.000MHz.
+TASMOPTS=-t1802 -x1 -lat -g0 -i -p44 \
+	 -DTASM -DVT1802 -DCPUCLOCK=2457600 -DPIXELCLOCK=14318180
 
 # All components of the EPROM image ...
 HEXFILES = vt1802.hex basic3.hex help.hex

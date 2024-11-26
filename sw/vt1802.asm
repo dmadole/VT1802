@@ -144,9 +144,38 @@
 ;
 ; 026	-- If flow control is used, SERCLR needs to enable the other end (by
 ;	    setting CTS or sending an XON).
+;
+; 027	-- NORMA1 shouldn't do an ANI $7F because WFAC needs it to write field
+;	    attribute codes to the screen!
 ;--
 VERMAJ	.EQU	1	; major version number
-VEREDT	.EQU	26	; and the edit level
+VEREDT	.EQU	27	; and the edit level
+
+; TODO list-
+;   Drawing boxes and lines should be easier - maybe some kind of escape
+; sequences with (column,row) coordinates for endpoints?
+;
+;   Still have some annoying flicker when scrolling.  Why?  Is it just
+; interrupt latency for the end of row screen wrap around?
+;
+;   Need escape sequences for playing tones and music (should be compatible
+; with the VIS1802!).
+;
+;   Use some extra RAM (we have lots!) to implement a second text display
+; page.  Direct the terminal output to one page and the BASIC output to the
+; other, and then use some PS/2 key to flip between them.  
+;
+;  Implement some simple POST diagnostics at startup?
+;
+;  Add auto newline <ESC>v and w.
+;
+;  Distinguish between auto new line and auto line wrap?
+;
+;  Cleanup the startup code and remove some of the junk commands.
+;
+;  Expect an 1805 CPU and try to speed up the code by replacing the macros
+;    with built-in 1805 instructions, especially RLDI, DBNZ, SCAL, SRET, etc.
+;    SCAL/SRET may be problematic with BASIC3...
 
 	.SBTTL	VT1802 Hardware Definitions
 
@@ -1883,8 +1912,10 @@ NORMAL:	PUSHD			; save the character for a minute
 	IRX\ LDI $60\ SD\ STXD	; ACS mode - shift it down to 0x00..0x1F
 
 ; Now store the character in memory (finally!)
+;   BTW, don't be tempted to do an "ANI $7F" here, because WFAC uses this
+; to write field attribute codes to the screen!
 NORMA1:	CALL(WHERE)		; calculate the address of the cursor
-	POPD\ ANI $7F\ STR P1	; then write the character there
+	POPD\ STR P1		; then write the character there
 
 ;   After storing the character we want to move the cursor right.  This could
 ; be as simple as just calling RIGHT:, but but that will stop moving the cursor

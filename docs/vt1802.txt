@@ -67,7 +67,9 @@ HARDWARE NOTES
   CPU CLOCK
   Normally the CPU clock is connected to the 2.4567MHz baud rate clock by installing jumper JP9.  If you select this option, then do not install Y1, C1, C11 or R2.   However if you wish you can select a different CPU clock by removing JP9 and installing Y1, C1, C11 and R2.
 
-  The video timing is unaffected by the CPU clock and, providing that the 1802 can keep up with the refresh requirements, any CPU frequency should work.  However be aware that the CDP1863 tone generator is clocked by TPB so changing the CPU clock will change all the tone frequencies.  You'll need to adjust the firmware and rebuild it to compensate for that.
+  The video timing is unaffected by the CPU clock and, providing that the 1802 can keep up with the refresh requirements, any CPU frequency should work.  However be aware that the CDP1863 tone generator is clocked by TPB so changing the CPU clock will change all the tone frequencies.  Also, the 1802 firmware does contain some delay loops that are affected by the CPU clock frequency.  You'll need to adjust the firmware and rebuild it to compensate for that if you change the CPU clock.
+
+  The Makefile contains an option for either a 2.4576MHz CPU clock, or a 3.579545MHz CPU clock.  These two are already supported by conditional assembly options in the source code, but if you want another frequency you'll have to make the necessary changes to the code.
 
   JUMPERS
   JP1 and JP2 select the number of horizontal pixels per font glyph.  If JP1 is installed then 7 dots are selected; if JP2 is installed then 9 dots are selected.  If neither is installed, 8 dots are selected.  The latter, 8 dots, is the default for all current firmware and fonts.
