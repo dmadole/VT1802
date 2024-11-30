@@ -35,25 +35,30 @@
 # 17-JUL-24	RLA	Add BASIC3.
 # 26-SEP-24	RLA	Add font file stuff.
 # 29-SEP-24	RLA	Add CPUCLOCK and PIXELCLOCK definitions.
+# 30-NOV-24	RLA	Use "shell which" to find tools (thanks, David!)
+#			Make PIXELCLOCK and CPUCLOCK explicit parameters.
 #--
 
-# Tool paths and options - you can change these as necessary...
-TASM=D:/bob/bin/tasm/tasm
-export TASMTABS=D:/bob/bin/tasm/
-A18=d:/bob/bin/a18
-ROMMERGE=D:/bob/bin/rommerge.exe
-ROMCKSUM=D:/bob/bin/romcksum.exe
-ROMTEXT=D:/bob/bin/romtext.exe
-ZIP=C:/Program Files/7-Zip/7z.exe
-RM=C:/cygwin64/bin/rm.exe
-ECHO=C:/cygwin64/bin/echo.exe
-DATE=C:/cygwin64/bin/date.exe
+#    VT1802 assembly options.  Note that the only supported CPUCLOCKS are
+# 2457600Hz or 3579545Hz, and the only supported PIXELCLOCKs are 1431810MHz
+# or 12000000Hz.
+CPUCLOCK=2457600
+PIXELCLOCK=14318180
 
-#    VT1802 assembly options.  Note that the only support CPUCLOCKS are
-# 2.4576MHz or 3.579545MHz, and the only supported PIXELCLOCKs are 14.31818MHz
-# or 12.000MHz.
-TASMOPTS=-t1802 -x1 -lat -g0 -i -p44 \
-	 -DTASM -DVT1802 -DCPUCLOCK=2457600 -DPIXELCLOCK=14318180
+# Tool paths and options - you can change these as necessary...
+TASM=$(shell which tasm)
+export TASMTABS=$(dir $(TASM))
+TASMOPTS=-t1802 -x1 -lat -g0 -i -p44 -DTASM -DVT1802 \
+	 -DCPUCLOCK=$(CPUCLOCK) -DPIXELCLOCK=$(PIXELCLOCK)
+A18=$(shell which a18)
+ROMMERGE=$(shell which rommerge)
+ROMCKSUM=$(shell which romcksum)
+ROMTEXT=$(shell which romtext)
+ZIP=C:/Program Files/7-Zip/7z.exe
+RM=$(shell which rm)
+ECHO=$(shell which echo)
+DATE=$(shell which date)
+
 
 # All components of the EPROM image ...
 HEXFILES = vt1802.hex basic3.hex help.hex
@@ -70,7 +75,7 @@ vt1802.hex:	vt1802.asm sysdat.asm
 
 basic3.hex:	basic3.asm
 	@$(ECHO) -e "\n*** BUILDING BASIC3 ***"
-	$(A18) $< -l $(<:.asm=.lst) -o $@
+	@$(A18) $< -l $(<:.asm=.lst) -o $@
 
 help.hex:	vt1802.hlp
 	@$(ECHO) -e "\n*** COMPILING HELP TEXT ***"
