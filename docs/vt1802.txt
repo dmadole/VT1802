@@ -199,7 +199,6 @@ BASIC MODIFICATIONS
 MUSIC Notation for the PLAY string
 --------------------------------------------------------------------------------
 
-
    The music player takes an ordinary ASCII string and interprets it as a musical notation of sorts.  The letters A..G (or a..g, since case is ignored) refer to the notes A thru G.  Each letter may be followed by a "+" or "#" to indicate a sharp, or a "-" to indicate a flat. "DABF#GDGA" would get you the famous 8 note cello part from Pachelbel's Canon.
 
    Other characters have special meanings as well.  The digits 1, 2, 4 or 8 specify the note duration - whole note, half note, quarter note or eighth note (notice that larger numbers are shorter intervals!).  Sixteenth notes are unfortunately not possible - sorry!  The note duration must preceed the note ("4D" for a quarter note D, NOT "D4"!) and remain in effect until changed by another digit.  So the string "4DABF" would be ALL quarter notes.
@@ -250,3 +249,50 @@ HEL[p]				-- print this text
 ; any text			-- comment command procedures
 ^C				-- cancel current command line
 <BREAK>				-- interrupt execution of long commands
+ASSEMBLING THE SOURCE
+--------------------------------------------------------------------------------
+  To rebuild the EPROM image you will need all the source files from the Spare Time Gizmos github VT1802 repository.  You will also need these tools -
+
+  tasm     - Telemark crosss assembler v3.5
+  	     download from https://github.com/SpareTimeGizmos/tools/tree/main/tasm35
+  a18      - A18 cross assembler from Herb Johnson's site
+  	     download from https://www.retrotechnology.com/memship/a18.zip
+  romtext  - Spare Time Gizmos tool to add help text to EPROM images
+  	     download from https://github.com/SpareTimeGizmos/tools/tree/main/romtext
+  rommerge - Spare Time Gizmos tool to merge hex files into one EPROM image
+  	     download from https://github.com/SpareTimeGizmos/tools/tree/main/rommerge
+  romcksum - Spare Time Gizmos tool to add checksums to EPROM images
+  	     download from https://github.com/SpareTimeGizmos/tools/tree/main/romcksum
+
+You will need to compile and build all of these tools and copy them to a directory that's included in your path, such as /usr/local/bin.  Once you have done this, you can simply change directory to VT1802/sw and type
+
+	make
+
+This will automatically
+
+	1) assemble the VT1802 firmware with TASM
+	2) assemble BASIC with A18
+	3) convert the help text to an Intel hex file
+	4) merge all the above hex files together
+	5) compute and add the checksum to the merged file
+
+The result will be a single file, eprom.hex, which contains the firmware for the VT1802.  This file is ready for burning into a 27C256 EPROM.
+
+By default the Makefile will generate firmware for a 14.31818MHz pixel clock and a 2.4576MHz CPU clock (see discussion of the pixel and CPU clocks, above).  To build firmware for a different configuration, you can say
+
+	make CPUCLOCK=3579545
+  - or -
+  	make PIXELCLOCK=12000000
+  - or even -
+  	make CPUCLOCK=3579545 PIXELCLOCK=12000000
+
+Note that the clock frequencies must be specified in HERTZ, not MHz.  Currently 2.4576MHz and 3.579545MHz are the only CPU clock frequencies supported by the firmware, and 14.31818MHz and 12.000MHz are the only supported pixel clocks.  You can add others, but you will need to modify the VT1802 source to do it.
+
+BUILDING THE FONTS
+--------------------------------------------------------------------------------
+In the VT1802 the character fonts are stored in a separate EPROM and are defined in a separate source file, vtfont.asm.  To rebuild the fonts EPROM, type
+
+	make vtfont.hex
+
+and this will build the vtfont.hex file, which is ready to be burned into a 27C64 EPROM.
+
