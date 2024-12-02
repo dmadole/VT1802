@@ -51,7 +51,7 @@
 ; for a full upper and lower case ASCII set plus an number of special symbols.
 ; In addition, the 8275 can generate simple straight line graphics which are
 ; fully supported by the VT1802.  And lastly, the 8275 supports several
-; character attributes including blinking, underline, reverse video and 
+; character attributes including blinking, strikethru, reverse video and 
 ; highlight which are also implemented by the VT1802.
 ;
 ;   The VT1802 uses a CDP1854 UART and a CDP1863 baud rate generator.  It can
@@ -147,9 +147,22 @@
 ;
 ; 027	-- NORMA1 shouldn't do an ANI $7F because WFAC needs it to write field
 ;	    attribute codes to the screen!
+;
+; 028	-- Change the default timing for a 14.318MHz pixel clock to use 9 pixels
+;           per glyph and to generate 25 rows of text.
+;
+; 029	-- The 8275 datasheet contains this tidbit - "If the line number of the
+;	    underline is greater than 7, then the top and bottom scan lines will
+;	    be blanked."  I've no idea what this is good for, but apparently the
+;	    8275 really does this.  That means if we have 9 or 10 scan lines per
+;	    glyph and we try to put the underline on line 9 or 10, we lose two
+;	    rows off our glyphs!  For 9 scanlines per character row and 8 lines
+;	    per glyph, that's unbearable!  So change the the underline line to
+;	    the middle of the row and call it a strike thru instead!
+;
+; 030	-- Add a demo of the line drawing functions to the splash screen.
 ;--
-VERMAJ	.EQU	1	; major version number
-VEREDT	.EQU	27	; and the edit level
+VEREDT	.EQU	30	; and the edit level
 
 ; TODO list-
 ;   Drawing boxes and lines should be easier - maybe some kind of escape
@@ -259,7 +272,7 @@ BLNKATTR .EQU	$82	; blink
 GPA1ATTR .EQU	$84	; general purpose attribute 1
 GPA2ATTR .EQU	$88	;   "  "   "   "    "   "   2
 RVIDATTR .EQU	$90	; reverse video
-UNDRATTR .EQU	$A0	; underline
+UNDRATTR .EQU	$A0	; strikethru
 LINEATTR .EQU	$C0	; line drawing codes
 
 	.SBTTL	CDP1854 and CDP1863 Definitions
@@ -320,32 +333,61 @@ CH.SUB	.EQU	$1A	; filler for partial data blocks
 	.SBTTL	Software Configuration
 
 ; Configuration options ...
-HERTZ	  .EQU	60		; VRTC interrupt frequency
-CMDMAX	  .EQU	64		; maximum command line length
-BELLTONE  .EQU	$2A		; CDP1863 divisor for 440Hz
-BELLTIME  .EQU  HERTZ/2		; delay (in VRTC ticks) for ^G bell
+HERTZ	  .EQU	60	; VRTC interrupt frequency
+CMDMAX	  .EQU	64	; maximum command line length
+BELLTONE  .EQU	$2A	; CDP1863 divisor for 440Hz
+BELLTIME  .EQU  HERTZ/2	; delay (in VRTC ticks) for ^G bell
 
 ; i8275 video configuration ...
-MAXCOL	  .EQU	80		; characters displayed per row
-;   These are the video timing parameters for a 14.31818MHz dot clock, 9 pixels
+MAXCOL	   .EQU	80	; characters displayed per row
+CURSORTYPE .EQU  0	; 0->blinking block, 1->blinking underline
+			; 2->non-blinking block, 3->non-blinking underline
+
+;   These are the video timing parameters for a 14.31818MHz dot clock, 8 pixels
 ; per glyph, and an 80x26 display.  This setup gives longer retrace times and
-; works better with older, analog, CVBS monitors.
+; works better with older, analog, CVBS monitors.  For this timing, set
+; MAXROW=26 and HRTCCNT=32.
+;
+;   The "alternate" 14.31818MHz timing uses 9 pixels per glyph and gives an
+; 80x25 display.  This gives a better looking display (more space between the)
+; characters) but may not be enough horizontal retrace time for some monitors.
 	.IF PIXELCLOCK == 14318180
-MAXROW    .EQU	26		; rows displayed per screen
-VRTCCNT   .EQU	4		; rows per VRTC
-HRTCCNT   .EQU	32		; characters per HRTC
-SCANLINES .EQU	9		; scan lines per font glyph
-UNDERLINE .EQU	8		; scan line for underlining 
+	.IF GLYPHWIDTH == 9
+MAXROW    .EQU	25	; rows displayed per screen
+HRTCCNT   .EQU	22	; characters per HRTC
 	.ENDIF
-;   And these are the timing parameters for a 12.000MHz dot clock, 8 pixels per
+	.IF GLYPHWIDTH == 8
+MAXROW    .EQU	26	; rows displayed per screen
+HRTCCNT   .EQU	32	; characters per HRTC
+	.ENDIF
+; These parameters are independent of the pixels per glyph ...
+VRTCCNT   .EQU	4	; rows per VRTC
+SCANLINES .EQU	9	; scan lines per font glyph
+UNDERLINE .EQU	5	; scan line for underlining 
+	.ENDIF
+
+;   These are the timing parameters for a 12.000MHz dot clock, 8 pixels per
 ; glyph, and an 80x24 display.  This gives shorter retrace times, but larger
 ; characters and fills more of the the screen for a real CGA type monitor.
+;
+;   And like before, there is an "alternate" 12MHz timing that uses 7 pixels
+; per glyph for an 80x25 display. This gives very squished together characters,
+; but it does give more overscan and longer retrace times.
 	.IF PIXELCLOCK == 12000000
-MAXROW    .EQU	24		; rows displayed per screen
-VRTCCNT   .EQU	2		; rows per VRTC
-HRTCCNT   .EQU	16		; characters per HRTC
-SCANLINES .EQU	10		; scan lines per font glyph
-UNDERLINE .EQU	9		; scan line for underlining 
+	.IF GLYPHWIDTH == 8
+MAXROW    .EQU	24	; rows displayed per screen
+VRTCCNT   .EQU	2	; rows per VRTC
+HRTCCNT   .EQU	16	; characters per HRTC
+SCANLINES .EQU	10	; scan lines per font glyph
+UNDERLINE .EQU	5	; scan line for underlining 
+	.ENDIF
+	.IF GLYPHWIDTH == 7
+MAXROW    .EQU	25	; rows displayed per screen
+VRTCCNT   .EQU	4	; rows per VRTC
+HRTCCNT   .EQU	28	; characters per HRTC
+SCANLINES .EQU	9	; scan lines per font glyph
+UNDERLINE .EQU	5	; scan line for underlining 
+	.ENDIF
 	.ENDIF
 
 ; Buffer size definitions ...
@@ -803,11 +845,10 @@ XHDR4:	.BLOCK	1		; received checksum
 ; after all!
 ;--
 SYSNAM:	.TEXT	"SPARE TIME GIZMOS VT1802 V"
-	.BYTE	'0'+VERMAJ, '('
 	.BYTE	'0'+(VEREDT/100)
 	.BYTE	'0'+((VEREDT/10)%10)
 	.BYTE	'0'+(VEREDT%10)
-	.BYTE	')', 0
+	.BYTE	0
 	.INCLUDE "sysdat.asm"
 RIGHTS1:.TEXT	"Copyright (C) 2024 Spare Time Gizmos.\000"
 RIGHTS2:.TEXT	" All rights reserved\000"
@@ -2096,8 +2137,8 @@ NUMKPD:	RLDI(T1,KPDALT)		; same as above!
 ; requires a character location on the screen (which is blanked by the VSP
 ; output).
 ;
-;   This allows us to get blinking, reverse video, and underline, as well as
-; select any one of four alternate character sets stored in the EPROM.
+;   This allows us to get blinking, reverse video, and strikethru, as well
+; as select any one of four alternate character sets stored in the EPROM.
 ; Needless to say, the VT52 didn't have this function!
 ;
 ;   Sequence	Attribute
@@ -2109,10 +2150,10 @@ NUMKPD:	RLDI(T1,KPDALT)		; same as above!
 ;   <ESC>ND	alternate font 2 (GPA2)
 ;   <ESC>NL	alternate font 3 (GPA3)
 ;   <ESC>NP	reverse video
-;   <ESC>N 	underline (<ESC>N space!, 0x1B 0x4E 0x20)
+;   <ESC>N 	strikethru (<ESC>N space!, 0x1B 0x4E 0x20)
 ;
 ;   Note that attributes can be combined by ORing the bit patterns.  For
-; example, <ESC>NC gives bold blinking, or <ESC>N" gives underline blinking.
+; example, <ESC>NC gives bold blinking, or <ESC>N" gives strikethru blinking.
 ; Also the special code <ESC>r is equivalent to <ESC>NP and selects reverse
 ; video.  Likewise <ESC>n is equivalent to <ESC>N@ and selects normal video.
 ; These two codes are implemented for compatability with the VIS1802.
@@ -2821,6 +2862,11 @@ SPL11:	LDI ' '\ STR P1\ INC P1	; store spaces
 	.ENDIF
 	OUTSTR(SPLMS2)		; then display everything else
 
+; Draw a line drawing attributes demo in the upper right corner ...
+	OUTSTR(BOX1)\ OUTSTR(BOX2)
+	OUTSTR(BOX3)\ OUTSTR(BOX4)
+	OUTSTR(BOX5)\ OUTSTR(BOX6)
+
 ; Display the four supported fonts ...
 	OUTSTR(SPLM50)\ OUTSTR(SPLMS3)
 	OUTSTR(SPLM51)\ OUTSTR(SPLMS4)
@@ -2846,14 +2892,14 @@ SPLAS9:	CALL(RSTIO)		; reset the console input
 	RETURN			; all done
 
 ; Messages...
-SPLMS2:	.TEXT	"\033Y\'e\033N@"
-	.TEXT	"\033Y\'*NORMAL \033N UNDERLINED\033N@"
+SPLMS2:	.TEXT	"\033Y\(e\033N@"
+	.TEXT	"\033Y\(*NORMAL \033N STRIKE THRU\033N@"
 	.TEXT	"\033NPREVERSE VIDEO\033N@\033NBBLINKING\033N@"
 	.TEXT	"\033NAHIGHLIGHT"
-	.TEXT	"\033Y)$FONT 1"
-	.TEXT	"\033Y,$FONT 2"
-	.TEXT	"\033Y/$FONT 3"
-	.TEXT	"\033Y2$FONT 4"
+	.TEXT	"\033Y*$FONT 1"
+	.TEXT	"\033Y-$FONT 2"
+	.TEXT	"\033Y0$FONT 3"
+	.TEXT	"\033Y3$FONT 4"
 	.BYTE	0
 SPLMS3:	.TEXT	"\033F`abcdefghijklmnopqrstuvwxyz{|}~\033G"
 	.TEXT	     " !\"#$%&'()*+,-./0123456789:;<=>?"
@@ -2861,14 +2907,23 @@ SPLMS3:	.TEXT	"\033F`abcdefghijklmnopqrstuvwxyz{|}~\033G"
 SPLMS4:	.TEXT	     "@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_"
 	.TEXT	     "`abcdefghijklmnopqrstuvwxyz{|}~"
 	.BYTE	0
-SPLM50:	.TEXT	"\033Y)j\033N@\033Y)+\000"
-SPLM51:	.TEXT	"\033Y*j\033N@\033Y*+\000"
-SPLM60:	.TEXT	"\033Y,j\033N@\033Y,*\033NH\000"
-SPLM61:	.TEXT	"\033Y-j\033N@\033Y-*\033NH\000"
-SPLM70:	.TEXT	"\033Y/j\033N@\033Y/*\033ND\000"
-SPLM71:	.TEXT	"\033Y0j\033N@\033Y0*\033ND\000"
-SPLM80:	.TEXT	"\033Y2j\033N@\033Y2*\033NL\000"
-SPLM81:	.TEXT	"\033Y3j\033N@\033Y3*\033NL\000"
+SPLM50:	.TEXT	"\033Y*j\033N@\033Y*+\000"
+SPLM51:	.TEXT	"\033Y+j\033N@\033Y++\000"
+SPLM60:	.TEXT	"\033Y-j\033N@\033Y-*\033NH\000"
+SPLM61:	.TEXT	"\033Y.j\033N@\033Y.*\033NH\000"
+SPLM70:	.TEXT	"\033Y0j\033N@\033Y0*\033ND\000"
+SPLM71:	.TEXT	"\033Y1j\033N@\033Y1*\033ND\000"
+SPLM80:	.TEXT	"\033Y3j\033N@\033Y3*\033NL\000"
+SPLM81:	.TEXT	"\033Y4j\033N@\033Y4*\033NL\000"
+BOX1:	.TEXT	"\033Y\"]\033l@\033l`\033l`\033l`\033l`\033l`\033lP"
+	.TEXT	"\033l`\033l`\033l`\033l`\033l`\033lD\000"
+BOX2:	.TEXT	"\033Y#]\033ld     \033ld     \033ld\000"
+BOX3:	.TEXT	"\033Y$]\033lX\033l`\033l`\033l`\033l`\033l`\033lh"
+	.TEXT	"\033l`\033l`\033l`\033l`\033l`\033lT\000"
+BOX4:	.TEXT	"\033Y%]\033ld     \033ld     \033ld\000"
+BOX5:	.TEXT	"\033Y&]\033lH\033l`\033l`\033l`\033l`\033l`\033l\134"
+	.TEXT	"\033l`\033l`\033l`\033l`\033l`\033lL\000"
+BOX6:	.TEXT	"\033Y#`I\033Y#eCAN\033Y%^DRAW\033Y%dLINES\000"
 
 	.SBTTL	Initialize i8275 Display
 
@@ -2900,10 +2955,10 @@ CRTCP1	.EQU	$00 + (MAXCOL-1)
 ; Parameter 2 - rows per VRTC, rows per screen 
 CRTCP2	.EQU	(VRTCCNT-1)<<6 + (MAXROW-1)
 ; Parameter 3 - scan line for underline, scan lines per font
-CRTCP3  .EQU	UNDERLINE<<4 + SCANLINES
+CRTCP3  .EQU	(UNDERLINE-1)<<4 + (SCANLINES-1)
 ; Parameter 4 - offset line counter, non-transparent field codes,
 ;		  blinking block cursor, and characters per HRTC
-CRTCP4	.EQU	$C0 + (0<<4) + (HRTCCNT>>1)-1
+CRTCP4	.EQU	$C0 + (CURSORTYPE<<4) + (HRTCCNT>>1)-1
 
 ;++
 ; Initialize the i8275, but DON'T turn on the display yet!

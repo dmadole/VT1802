@@ -37,19 +37,22 @@
 # 29-SEP-24	RLA	Add CPUCLOCK and PIXELCLOCK definitions.
 # 30-NOV-24	RLA	Use "shell which" to find tools (thanks, David!)
 #			Make PIXELCLOCK and CPUCLOCK explicit parameters.
+#  2-DEC-24	RLA	Add GLYPHWIDTH parameter.
 #--
 
 #    VT1802 assembly options.  Note that the only supported CPUCLOCKS are
 # 2457600Hz or 3579545Hz, and the only supported PIXELCLOCKs are 1431810MHz
-# or 12000000Hz.
+# or 12000000Hz.  GLYPHWIDTH may be either 8 or 9, but is only supported for
+# the 14.31818MHz PIXELCLOCK.  For the 12MHz PIXELCLOCK it is ignored.
 CPUCLOCK=2457600
 PIXELCLOCK=14318180
+GLYPHWIDTH=8
 
 # Tool paths and options - you can change these as necessary...
 TASM=$(shell which tasm)
 export TASMTABS=$(dir $(TASM))
 TASMOPTS=-t1802 -x1 -lat -g0 -i -p44 -DTASM -DVT1802 \
-	 -DCPUCLOCK=$(CPUCLOCK) -DPIXELCLOCK=$(PIXELCLOCK)
+	 -DCPUCLOCK=$(CPUCLOCK) -DPIXELCLOCK=$(PIXELCLOCK) -DGLYPHWIDTH=$(GLYPHWIDTH)
 A18=$(shell which a18)
 ROMMERGE=$(shell which rommerge)
 ROMCKSUM=$(shell which romcksum)
