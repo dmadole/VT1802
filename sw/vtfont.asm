@@ -67,6 +67,13 @@
 ; doesn't matter.
 ;--
 
+	.SBTTL	Revision History
+
+;++
+; 001	-- Shift the VT52 font left one pixel so that it's not clipped in
+;	    in the 7 pixels/glyph mode.
+;--
+
 	.SBTTL	Spare Time Gizmos Standard Font
 	.ORG	$0000
 
@@ -1372,624 +1379,624 @@
 	.BYTE	$00	;         
 
 ; ASCII character 0x01 ...
-	.BYTE	$00	;         
-	.BYTE	$0C	;   **    
-	.BYTE	$02	;  *      
-	.BYTE	$82	;  *     *
-	.BYTE	$8C	;   **   *
-	.BYTE	$E0	;      ***
-	.BYTE	$90	;     *  *
-	.BYTE	$E0	;      ***
+	.BYTE	$00 >> 1;         
+	.BYTE	$0C >> 1;   **    
+	.BYTE	$02 >> 1;  *      
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$8C >> 1;   **   *
+	.BYTE	$E0 >> 1;      ***
+	.BYTE	$90 >> 1;     *  *
+	.BYTE	$E0 >> 1;      ***
 
 ; ASCII character 0x02 ...
-	.BYTE	$FE	;  *******
-	.BYTE	$FE	;  *******
-	.BYTE	$FE	;  *******
-	.BYTE	$FE	;  *******
-	.BYTE	$FE	;  *******
-	.BYTE	$FE	;  *******
-	.BYTE	$FE	;  *******
-	.BYTE	$FE	;  *******
+	.BYTE	$FE >> 1;  *******
+	.BYTE	$FE >> 1;  *******
+	.BYTE	$FE >> 1;  *******
+	.BYTE	$FE >> 1;  *******
+	.BYTE	$FE >> 1;  *******
+	.BYTE	$FE >> 1;  *******
+	.BYTE	$FE >> 1;  *******
+	.BYTE	$FE >> 1;  *******
 
 ; ASCII character 0x03 ...
-	.BYTE	$00	;         
-	.BYTE	$84	;   *    *
-	.BYTE	$86	;  **    *
-	.BYTE	$44	;   *   * 
-	.BYTE	$44	;   *   * 
-	.BYTE	$2E	;  *** *  
-	.BYTE	$20	;      *  
-	.BYTE	$10	;     *   
+	.BYTE	$00 >> 1;         
+	.BYTE	$84 >> 1;   *    *
+	.BYTE	$86 >> 1;  **    *
+	.BYTE	$44 >> 1;   *   * 
+	.BYTE	$44 >> 1;   *   * 
+	.BYTE	$2E >> 1;  *** *  
+	.BYTE	$20 >> 1;      *  
+	.BYTE	$10 >> 1;     *   
 
 ; ASCII character 0x04 ...
-	.BYTE	$00	;         
-	.BYTE	$8E	;  ***   *
-	.BYTE	$90	;     *  *
-	.BYTE	$4C	;   **  * 
-	.BYTE	$50	;     * * 
-	.BYTE	$2E	;  *** *  
-	.BYTE	$20	;      *  
-	.BYTE	$10	;     *   
+	.BYTE	$00 >> 1;         
+	.BYTE	$8E >> 1;  ***   *
+	.BYTE	$90 >> 1;     *  *
+	.BYTE	$4C >> 1;   **  * 
+	.BYTE	$50 >> 1;     * * 
+	.BYTE	$2E >> 1;  *** *  
+	.BYTE	$20 >> 1;      *  
+	.BYTE	$10 >> 1;     *   
 
 ; ASCII character 0x05 ...
-	.BYTE	$00	;         
-	.BYTE	$9E	;  ****  *
-	.BYTE	$82	;  *     *
-	.BYTE	$4E	;  ***  * 
-	.BYTE	$50	;     * * 
-	.BYTE	$2E	;  *** *  
-	.BYTE	$20	;      *  
-	.BYTE	$10	;     *   
+	.BYTE	$00 >> 1;         
+	.BYTE	$9E >> 1;  ****  *
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$4E >> 1;  ***  * 
+	.BYTE	$50 >> 1;     * * 
+	.BYTE	$2E >> 1;  *** *  
+	.BYTE	$20 >> 1;      *  
+	.BYTE	$10 >> 1;     *   
 
 ; ASCII character 0x06 ...
-	.BYTE	$00	;         
-	.BYTE	$9E	;  ****  *
-	.BYTE	$90	;     *  *
-	.BYTE	$48	;    *  * 
-	.BYTE	$44	;   *   * 
-	.BYTE	$22	;  *   *  
-	.BYTE	$20	;      *  
-	.BYTE	$10	;     *   
+	.BYTE	$00 >> 1;         
+	.BYTE	$9E >> 1;  ****  *
+	.BYTE	$90 >> 1;     *  *
+	.BYTE	$48 >> 1;    *  * 
+	.BYTE	$44 >> 1;   *   * 
+	.BYTE	$22 >> 1;  *   *  
+	.BYTE	$20 >> 1;      *  
+	.BYTE	$10 >> 1;     *   
 
 ; ASCII character 0x07 ...
-	.BYTE	$00	;         
-	.BYTE	$18	;    **   
-	.BYTE	$24	;   *  *  
-	.BYTE	$18	;    **   
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$18 >> 1;    **   
+	.BYTE	$24 >> 1;   *  *  
+	.BYTE	$18 >> 1;    **   
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
 
 ; ASCII character 0x08 ...
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$10	;     *   
-	.BYTE	$10	;     *   
-	.BYTE	$FE	;  *******
-	.BYTE	$10	;     *   
-	.BYTE	$10	;     *   
-	.BYTE	$FE	;  *******
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$FE >> 1;  *******
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$FE >> 1;  *******
 
 ; ASCII character 0x09 ...
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$20	;      *  
-	.BYTE	$40	;       * 
-	.BYTE	$FE	;  *******
-	.BYTE	$40	;       * 
-	.BYTE	$20	;      *  
-	.BYTE	$00	;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$20 >> 1;      *  
+	.BYTE	$40 >> 1;       * 
+	.BYTE	$FE >> 1;  *******
+	.BYTE	$40 >> 1;       * 
+	.BYTE	$20 >> 1;      *  
+	.BYTE	$00 >> 1;         
 
 ; ASCII character 0x0A ...
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$92	;  *  *  *
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$92 >> 1;  *  *  *
 
 ; ASCII character 0x0B ...
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$10	;     *   
-	.BYTE	$00	;         
-	.BYTE	$FE	;  *******
-	.BYTE	$00	;         
-	.BYTE	$10	;     *   
-	.BYTE	$00	;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$00 >> 1;         
+	.BYTE	$FE >> 1;  *******
+	.BYTE	$00 >> 1;         
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$00 >> 1;         
 
 ; ASCII character 0x0C ...
-	.BYTE	$00	;         
-	.BYTE	$10	;     *   
-	.BYTE	$10	;     *   
-	.BYTE	$92	;  *  *  *
-	.BYTE	$54	;   * * * 
-	.BYTE	$38	;    ***  
-	.BYTE	$10	;     *   
-	.BYTE	$00	;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$92 >> 1;  *  *  *
+	.BYTE	$54 >> 1;   * * * 
+	.BYTE	$38 >> 1;    ***  
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$00 >> 1;         
 
 ; ASCII character 0x0D ...
-	.BYTE	$FE	;  *******
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
+	.BYTE	$FE >> 1;  *******
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
 
 ; ASCII character 0x0E ...
-	.BYTE	$00	;         
-	.BYTE	$FE	;  *******
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$FE >> 1;  *******
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
 
 ; ASCII character 0x0F ...
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$FE	;  *******
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$FE >> 1;  *******
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
 
 ; ASCII character 0x10 ...
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$FE	;  *******
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$FE >> 1;  *******
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
 
 ; ASCII character 0x11 ...
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$FE	;  *******
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$FE >> 1;  *******
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
 
 ; ASCII character 0x12 ...
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$FE	;  *******
-	.BYTE	$00	;         
-	.BYTE	$00	;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$FE >> 1;  *******
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
 
 ; ASCII character 0x13 ...
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$FE	;  *******
-	.BYTE	$00	;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$FE >> 1;  *******
+	.BYTE	$00 >> 1;         
 
 ; ASCII character 0x14 ...
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$FE	;  *******
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$FE >> 1;  *******
 
 ; ASCII character 0x15 ...
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$0C	;   **    
-	.BYTE	$12	;  *  *   
-	.BYTE	$12	;  *  *   
-	.BYTE	$12	;  *  *   
-	.BYTE	$0C	;   **    
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$0C >> 1;   **    
+	.BYTE	$12 >> 1;  *  *   
+	.BYTE	$12 >> 1;  *  *   
+	.BYTE	$12 >> 1;  *  *   
+	.BYTE	$0C >> 1;   **    
 
 ; ASCII character 0x16 ...
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$04	;   *     
-	.BYTE	$06	;  **     
-	.BYTE	$04	;   *     
-	.BYTE	$04	;   *     
-	.BYTE	$0E	;  ***    
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$04 >> 1;   *     
+	.BYTE	$06 >> 1;  **     
+	.BYTE	$04 >> 1;   *     
+	.BYTE	$04 >> 1;   *     
+	.BYTE	$0E >> 1;  ***    
 
 ; ASCII character 0x17 ...
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$0E	;  ***    
-	.BYTE	$10	;     *   
-	.BYTE	$0C	;   **    
-	.BYTE	$02	;  *      
-	.BYTE	$1E	;  ****   
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$0E >> 1;  ***    
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$0C >> 1;   **    
+	.BYTE	$02 >> 1;  *      
+	.BYTE	$1E >> 1;  ****   
 
 ; ASCII character 0x18 ...
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$0E	;  ***    
-	.BYTE	$10	;     *   
-	.BYTE	$0C	;   **    
-	.BYTE	$10	;     *   
-	.BYTE	$0E	;  ***    
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$0E >> 1;  ***    
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$0C >> 1;   **    
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$0E >> 1;  ***    
 
 ; ASCII character 0x19 ...
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$08	;    *    
-	.BYTE	$0C	;   **    
-	.BYTE	$0A	;  * *    
-	.BYTE	$1E	;  ****   
-	.BYTE	$08	;    *    
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$08 >> 1;    *    
+	.BYTE	$0C >> 1;   **    
+	.BYTE	$0A >> 1;  * *    
+	.BYTE	$1E >> 1;  ****   
+	.BYTE	$08 >> 1;    *    
 
 ; ASCII character 0x1A ...
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$1E	;  ****   
-	.BYTE	$02	;  *      
-	.BYTE	$0E	;  ***    
-	.BYTE	$10	;     *   
-	.BYTE	$0E	;  ***    
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$1E >> 1;  ****   
+	.BYTE	$02 >> 1;  *      
+	.BYTE	$0E >> 1;  ***    
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$0E >> 1;  ***    
 
 ; ASCII character 0x1B ...
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$1C	;   ***   
-	.BYTE	$02	;  *      
-	.BYTE	$0E	;  ***    
-	.BYTE	$12	;  *  *   
-	.BYTE	$0C	;   **    
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$1C >> 1;   ***   
+	.BYTE	$02 >> 1;  *      
+	.BYTE	$0E >> 1;  ***    
+	.BYTE	$12 >> 1;  *  *   
+	.BYTE	$0C >> 1;   **    
 
 ; ASCII character 0x1C ...
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$1E	;  ****   
-	.BYTE	$10	;     *   
-	.BYTE	$08	;    *    
-	.BYTE	$04	;   *     
-	.BYTE	$02	;  *      
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$1E >> 1;  ****   
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$08 >> 1;    *    
+	.BYTE	$04 >> 1;   *     
+	.BYTE	$02 >> 1;  *      
 
 ; ASCII character 0x1D ...
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$0C	;   **    
-	.BYTE	$12	;  *  *   
-	.BYTE	$0C	;   **    
-	.BYTE	$12	;  *  *   
-	.BYTE	$0C	;   **    
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$0C >> 1;   **    
+	.BYTE	$12 >> 1;  *  *   
+	.BYTE	$0C >> 1;   **    
+	.BYTE	$12 >> 1;  *  *   
+	.BYTE	$0C >> 1;   **    
 
 ; ASCII character 0x1E ...
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$0C	;   **    
-	.BYTE	$12	;  *  *   
-	.BYTE	$1C	;   ***   
-	.BYTE	$10	;     *   
-	.BYTE	$0E	;  ***    
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$0C >> 1;   **    
+	.BYTE	$12 >> 1;  *  *   
+	.BYTE	$1C >> 1;   ***   
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$0E >> 1;  ***    
 
 ; ASCII character 0x1F ...
-	.BYTE	$00	;         
-	.BYTE	$FC	;   ******
-	.BYTE	$5E	;  **** * 
-	.BYTE	$5E	;  **** * 
-	.BYTE	$5C	;   *** * 
-	.BYTE	$50	;     * * 
-	.BYTE	$50	;     * * 
-	.BYTE	$50	;     * * 
+	.BYTE	$00 >> 1;         
+	.BYTE	$FC >> 1;   ******
+	.BYTE	$5E >> 1;  **** * 
+	.BYTE	$5E >> 1;  **** * 
+	.BYTE	$5C >> 1;   *** * 
+	.BYTE	$50 >> 1;     * * 
+	.BYTE	$50 >> 1;     * * 
+	.BYTE	$50 >> 1;     * * 
 
 ; ASCII character 0x20 ...
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
 
 ; ASCII character 0x21 ...
-	.BYTE	$00	;         
-	.BYTE	$10	;     *   
-	.BYTE	$10	;     *   
-	.BYTE	$10	;     *   
-	.BYTE	$10	;     *   
-	.BYTE	$10	;     *   
-	.BYTE	$00	;         
-	.BYTE	$10	;     *   
+	.BYTE	$00 >> 1;         
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$00 >> 1;         
+	.BYTE	$10 >> 1;     *   
 
 ; ASCII character 0x22 ...
-	.BYTE	$00	;         
-	.BYTE	$28	;    * *  
-	.BYTE	$28	;    * *  
-	.BYTE	$28	;    * *  
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$28 >> 1;    * *  
+	.BYTE	$28 >> 1;    * *  
+	.BYTE	$28 >> 1;    * *  
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
 
 ; ASCII character 0x23 ...
-	.BYTE	$00	;         
-	.BYTE	$28	;    * *  
-	.BYTE	$28	;    * *  
-	.BYTE	$FE	;  *******
-	.BYTE	$28	;    * *  
-	.BYTE	$FE	;  *******
-	.BYTE	$28	;    * *  
-	.BYTE	$28	;    * *  
+	.BYTE	$00 >> 1;         
+	.BYTE	$28 >> 1;    * *  
+	.BYTE	$28 >> 1;    * *  
+	.BYTE	$FE >> 1;  *******
+	.BYTE	$28 >> 1;    * *  
+	.BYTE	$FE >> 1;  *******
+	.BYTE	$28 >> 1;    * *  
+	.BYTE	$28 >> 1;    * *  
 
 ; ASCII character 0x24 ...
-	.BYTE	$00	;         
-	.BYTE	$10	;     *   
-	.BYTE	$7C	;   ***** 
-	.BYTE	$12	;  *  *   
-	.BYTE	$7C	;   ***** 
-	.BYTE	$90	;     *  *
-	.BYTE	$7C	;   ***** 
-	.BYTE	$10	;     *   
+	.BYTE	$00 >> 1;         
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$7C >> 1;   ***** 
+	.BYTE	$12 >> 1;  *  *   
+	.BYTE	$7C >> 1;   ***** 
+	.BYTE	$90 >> 1;     *  *
+	.BYTE	$7C >> 1;   ***** 
+	.BYTE	$10 >> 1;     *   
 
 ; ASCII character 0x25 ...
-	.BYTE	$00	;         
-	.BYTE	$86	;  **    *
-	.BYTE	$46	;  **   * 
-	.BYTE	$20	;      *  
-	.BYTE	$10	;     *   
-	.BYTE	$08	;    *    
-	.BYTE	$C4	;   *   **
-	.BYTE	$C2	;  *    **
+	.BYTE	$00 >> 1;         
+	.BYTE	$86 >> 1;  **    *
+	.BYTE	$46 >> 1;  **   * 
+	.BYTE	$20 >> 1;      *  
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$08 >> 1;    *    
+	.BYTE	$C4 >> 1;   *   **
+	.BYTE	$C2 >> 1;  *    **
 
 ; ASCII character 0x26 ...
-	.BYTE	$00	;         
-	.BYTE	$38	;    ***  
-	.BYTE	$44	;   *   * 
-	.BYTE	$28	;    * *  
-	.BYTE	$10	;     *   
-	.BYTE	$A8	;    * * *
-	.BYTE	$44	;   *   * 
-	.BYTE	$B8	;    *** *
+	.BYTE	$00 >> 1;         
+	.BYTE	$38 >> 1;    ***  
+	.BYTE	$44 >> 1;   *   * 
+	.BYTE	$28 >> 1;    * *  
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$A8 >> 1;    * * *
+	.BYTE	$44 >> 1;   *   * 
+	.BYTE	$B8 >> 1;    *** *
 
 ; ASCII character 0x27 ...
-	.BYTE	$00	;         
-	.BYTE	$30	;     **  
-	.BYTE	$10	;     *   
-	.BYTE	$08	;    *    
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$30 >> 1;     **  
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$08 >> 1;    *    
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
 
 ; ASCII character 0x28 ...
-	.BYTE	$00	;         
-	.BYTE	$20	;      *  
-	.BYTE	$10	;     *   
-	.BYTE	$08	;    *    
-	.BYTE	$08	;    *    
-	.BYTE	$08	;    *    
-	.BYTE	$10	;     *   
-	.BYTE	$20	;      *  
+	.BYTE	$00 >> 1;         
+	.BYTE	$20 >> 1;      *  
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$08 >> 1;    *    
+	.BYTE	$08 >> 1;    *    
+	.BYTE	$08 >> 1;    *    
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$20 >> 1;      *  
 
 ; ASCII character 0x29 ...
-	.BYTE	$00	;         
-	.BYTE	$08	;    *    
-	.BYTE	$10	;     *   
-	.BYTE	$20	;      *  
-	.BYTE	$20	;      *  
-	.BYTE	$20	;      *  
-	.BYTE	$10	;     *   
-	.BYTE	$08	;    *    
+	.BYTE	$00 >> 1;         
+	.BYTE	$08 >> 1;    *    
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$20 >> 1;      *  
+	.BYTE	$20 >> 1;      *  
+	.BYTE	$20 >> 1;      *  
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$08 >> 1;    *    
 
 ; ASCII character 0x2A ...
-	.BYTE	$00	;         
-	.BYTE	$10	;     *   
-	.BYTE	$92	;  *  *  *
-	.BYTE	$54	;   * * * 
-	.BYTE	$38	;    ***  
-	.BYTE	$54	;   * * * 
-	.BYTE	$92	;  *  *  *
-	.BYTE	$10	;     *   
+	.BYTE	$00 >> 1;         
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$92 >> 1;  *  *  *
+	.BYTE	$54 >> 1;   * * * 
+	.BYTE	$38 >> 1;    ***  
+	.BYTE	$54 >> 1;   * * * 
+	.BYTE	$92 >> 1;  *  *  *
+	.BYTE	$10 >> 1;     *   
 
 ; ASCII character 0x2B ...
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$10	;     *   
-	.BYTE	$10	;     *   
-	.BYTE	$FE	;  *******
-	.BYTE	$10	;     *   
-	.BYTE	$10	;     *   
-	.BYTE	$00	;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$FE >> 1;  *******
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$00 >> 1;         
 
 ; ASCII character 0x2C ...
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$18	;    **   
-	.BYTE	$08	;    *    
-	.BYTE	$04	;   *     
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$18 >> 1;    **   
+	.BYTE	$08 >> 1;    *    
+	.BYTE	$04 >> 1;   *     
 
 ; ASCII character 0x2D ...
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$FE	;  *******
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$FE >> 1;  *******
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
 
 ; ASCII character 0x2E ...
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$18	;    **   
-	.BYTE	$18	;    **   
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$18 >> 1;    **   
+	.BYTE	$18 >> 1;    **   
 
 ; ASCII character 0x2F ...
-	.BYTE	$00	;         
-	.BYTE	$80	;        *
-	.BYTE	$40	;       * 
-	.BYTE	$20	;      *  
-	.BYTE	$10	;     *   
-	.BYTE	$08	;    *    
-	.BYTE	$04	;   *     
-	.BYTE	$02	;  *      
+	.BYTE	$00 >> 1;         
+	.BYTE	$80 >> 1;        *
+	.BYTE	$40 >> 1;       * 
+	.BYTE	$20 >> 1;      *  
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$08 >> 1;    *    
+	.BYTE	$04 >> 1;   *     
+	.BYTE	$02 >> 1;  *      
 
 ; ASCII character 0x30 ...
-	.BYTE	$00	;         
-	.BYTE	$38	;    ***  
-	.BYTE	$44	;   *   * 
-	.BYTE	$A2	;  *   * *
-	.BYTE	$92	;  *  *  *
-	.BYTE	$8A	;  * *   *
-	.BYTE	$44	;   *   * 
-	.BYTE	$38	;    ***  
+	.BYTE	$00 >> 1;         
+	.BYTE	$38 >> 1;    ***  
+	.BYTE	$44 >> 1;   *   * 
+	.BYTE	$A2 >> 1;  *   * *
+	.BYTE	$92 >> 1;  *  *  *
+	.BYTE	$8A >> 1;  * *   *
+	.BYTE	$44 >> 1;   *   * 
+	.BYTE	$38 >> 1;    ***  
 
 ; ASCII character 0x31 ...
-	.BYTE	$00	;         
-	.BYTE	$10	;     *   
-	.BYTE	$18	;    **   
-	.BYTE	$14	;   * *   
-	.BYTE	$10	;     *   
-	.BYTE	$10	;     *   
-	.BYTE	$10	;     *   
-	.BYTE	$7C	;   ***** 
+	.BYTE	$00 >> 1;         
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$18 >> 1;    **   
+	.BYTE	$14 >> 1;   * *   
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$7C >> 1;   ***** 
 
 ; ASCII character 0x32 ...
-	.BYTE	$00	;         
-	.BYTE	$3C	;   ****  
-	.BYTE	$42	;  *    * 
-	.BYTE	$80	;        *
-	.BYTE	$70	;     *** 
-	.BYTE	$0C	;   **    
-	.BYTE	$02	;  *      
-	.BYTE	$FE	;  *******
+	.BYTE	$00 >> 1;         
+	.BYTE	$3C >> 1;   ****  
+	.BYTE	$42 >> 1;  *    * 
+	.BYTE	$80 >> 1;        *
+	.BYTE	$70 >> 1;     *** 
+	.BYTE	$0C >> 1;   **    
+	.BYTE	$02 >> 1;  *      
+	.BYTE	$FE >> 1;  *******
 
 ; ASCII character 0x33 ...
-	.BYTE	$00	;         
-	.BYTE	$FE	;  *******
-	.BYTE	$40	;       * 
-	.BYTE	$20	;      *  
-	.BYTE	$70	;     *** 
-	.BYTE	$80	;        *
-	.BYTE	$82	;  *     *
-	.BYTE	$7C	;   ***** 
+	.BYTE	$00 >> 1;         
+	.BYTE	$FE >> 1;  *******
+	.BYTE	$40 >> 1;       * 
+	.BYTE	$20 >> 1;      *  
+	.BYTE	$70 >> 1;     *** 
+	.BYTE	$80 >> 1;        *
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$7C >> 1;   ***** 
 
 ; ASCII character 0x34 ...
-	.BYTE	$00	;         
-	.BYTE	$20	;      *  
-	.BYTE	$30	;     **  
-	.BYTE	$28	;    * *  
-	.BYTE	$24	;   *  *  
-	.BYTE	$FE	;  *******
-	.BYTE	$20	;      *  
-	.BYTE	$20	;      *  
+	.BYTE	$00 >> 1;         
+	.BYTE	$20 >> 1;      *  
+	.BYTE	$30 >> 1;     **  
+	.BYTE	$28 >> 1;    * *  
+	.BYTE	$24 >> 1;   *  *  
+	.BYTE	$FE >> 1;  *******
+	.BYTE	$20 >> 1;      *  
+	.BYTE	$20 >> 1;      *  
 
 ; ASCII character 0x35 ...
-	.BYTE	$00	;         
-	.BYTE	$FE	;  *******
-	.BYTE	$02	;  *      
-	.BYTE	$7A	;  * **** 
-	.BYTE	$86	;  **    *
-	.BYTE	$80	;        *
-	.BYTE	$82	;  *     *
-	.BYTE	$7C	;   ***** 
+	.BYTE	$00 >> 1;         
+	.BYTE	$FE >> 1;  *******
+	.BYTE	$02 >> 1;  *      
+	.BYTE	$7A >> 1;  * **** 
+	.BYTE	$86 >> 1;  **    *
+	.BYTE	$80 >> 1;        *
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$7C >> 1;   ***** 
 
 ; ASCII character 0x36 ...
-	.BYTE	$00	;         
-	.BYTE	$78	;    **** 
-	.BYTE	$84	;   *    *
-	.BYTE	$02	;  *      
-	.BYTE	$7A	;  * **** 
-	.BYTE	$86	;  **    *
-	.BYTE	$84	;   *    *
-	.BYTE	$78	;    **** 
+	.BYTE	$00 >> 1;         
+	.BYTE	$78 >> 1;    **** 
+	.BYTE	$84 >> 1;   *    *
+	.BYTE	$02 >> 1;  *      
+	.BYTE	$7A >> 1;  * **** 
+	.BYTE	$86 >> 1;  **    *
+	.BYTE	$84 >> 1;   *    *
+	.BYTE	$78 >> 1;    **** 
 
 ; ASCII character 0x37 ...
-	.BYTE	$00	;         
-	.BYTE	$FE	;  *******
-	.BYTE	$80	;        *
-	.BYTE	$40	;       * 
-	.BYTE	$20	;      *  
-	.BYTE	$10	;     *   
-	.BYTE	$08	;    *    
-	.BYTE	$04	;   *     
+	.BYTE	$00 >> 1;         
+	.BYTE	$FE >> 1;  *******
+	.BYTE	$80 >> 1;        *
+	.BYTE	$40 >> 1;       * 
+	.BYTE	$20 >> 1;      *  
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$08 >> 1;    *    
+	.BYTE	$04 >> 1;   *     
 
 ; ASCII character 0x38 ...
-	.BYTE	$00	;         
-	.BYTE	$7C	;   ***** 
-	.BYTE	$82	;  *     *
-	.BYTE	$82	;  *     *
-	.BYTE	$7C	;   ***** 
-	.BYTE	$82	;  *     *
-	.BYTE	$82	;  *     *
-	.BYTE	$7C	;   ***** 
+	.BYTE	$00 >> 1;         
+	.BYTE	$7C >> 1;   ***** 
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$7C >> 1;   ***** 
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$7C >> 1;   ***** 
 
 ; ASCII character 0x39 ...
-	.BYTE	$00	;         
-	.BYTE	$3C	;   ****  
-	.BYTE	$42	;  *    * 
-	.BYTE	$C2	;  *    **
-	.BYTE	$BC	;   **** *
-	.BYTE	$80	;        *
-	.BYTE	$42	;  *    * 
-	.BYTE	$3C	;   ****  
+	.BYTE	$00 >> 1;         
+	.BYTE	$3C >> 1;   ****  
+	.BYTE	$42 >> 1;  *    * 
+	.BYTE	$C2 >> 1;  *    **
+	.BYTE	$BC >> 1;   **** *
+	.BYTE	$80 >> 1;        *
+	.BYTE	$42 >> 1;  *    * 
+	.BYTE	$3C >> 1;   ****  
 
 ; ASCII character 0x3A ...
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$18	;    **   
-	.BYTE	$18	;    **   
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$18	;    **   
-	.BYTE	$18	;    **   
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$18 >> 1;    **   
+	.BYTE	$18 >> 1;    **   
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$18 >> 1;    **   
+	.BYTE	$18 >> 1;    **   
 
 ; ASCII character 0x3B ...
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$18	;    **   
-	.BYTE	$18	;    **   
-	.BYTE	$00	;         
-	.BYTE	$18	;    **   
-	.BYTE	$08	;    *    
-	.BYTE	$04	;   *     
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$18 >> 1;    **   
+	.BYTE	$18 >> 1;    **   
+	.BYTE	$00 >> 1;         
+	.BYTE	$18 >> 1;    **   
+	.BYTE	$08 >> 1;    *    
+	.BYTE	$04 >> 1;   *     
 
 ; ASCII character 0x3C ...
-	.BYTE	$00	;         
-	.BYTE	$40	;       * 
-	.BYTE	$20	;      *  
-	.BYTE	$10	;     *   
-	.BYTE	$08	;    *    
-	.BYTE	$10	;     *   
-	.BYTE	$20	;      *  
-	.BYTE	$40	;       * 
+	.BYTE	$00 >> 1;         
+	.BYTE	$40 >> 1;       * 
+	.BYTE	$20 >> 1;      *  
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$08 >> 1;    *    
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$20 >> 1;      *  
+	.BYTE	$40 >> 1;       * 
 
 ; ASCII character 0x3D ...
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$FE	;  *******
-	.BYTE	$00	;         
-	.BYTE	$FE	;  *******
-	.BYTE	$00	;         
-	.BYTE	$00	;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$FE >> 1;  *******
+	.BYTE	$00 >> 1;         
+	.BYTE	$FE >> 1;  *******
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
 
 ; ASCII character 0x3E ...
-	.BYTE	$00	;         
-	.BYTE	$04	;   *     
-	.BYTE	$08	;    *    
-	.BYTE	$10	;     *   
-	.BYTE	$20	;      *  
-	.BYTE	$10	;     *   
-	.BYTE	$08	;    *    
-	.BYTE	$04	;   *     
+	.BYTE	$00 >> 1;         
+	.BYTE	$04 >> 1;   *     
+	.BYTE	$08 >> 1;    *    
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$20 >> 1;      *  
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$08 >> 1;    *    
+	.BYTE	$04 >> 1;   *     
 
 ; ASCII character 0x3F ...
 	.BYTE	$00	;         
@@ -2012,634 +2019,634 @@
 	.BYTE	$3E	;   ***** 
 
 ; ASCII character 0x41 ...
-	.BYTE	$00	;         
-	.BYTE	$10	;     *   
-	.BYTE	$28	;    * *  
-	.BYTE	$44	;   *   * 
-	.BYTE	$82	;  *     *
-	.BYTE	$FE	;  *******
-	.BYTE	$82	;  *     *
-	.BYTE	$82	;  *     *
+	.BYTE	$00 >> 1;         
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$28 >> 1;    * *  
+	.BYTE	$44 >> 1;   *   * 
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$FE >> 1;  *******
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$82 >> 1;  *     *
 
 ; ASCII character 0x42 ...
-	.BYTE	$00	;         
-	.BYTE	$7E	;  ****** 
-	.BYTE	$84	;   *    *
-	.BYTE	$84	;   *    *
-	.BYTE	$7C	;   ***** 
-	.BYTE	$84	;   *    *
-	.BYTE	$84	;   *    *
-	.BYTE	$7E	;  ****** 
+	.BYTE	$00 >> 1;         
+	.BYTE	$7E >> 1;  ****** 
+	.BYTE	$84 >> 1;   *    *
+	.BYTE	$84 >> 1;   *    *
+	.BYTE	$7C >> 1;   ***** 
+	.BYTE	$84 >> 1;   *    *
+	.BYTE	$84 >> 1;   *    *
+	.BYTE	$7E >> 1;  ****** 
 
 ; ASCII character 0x43 ...
-	.BYTE	$00	;         
-	.BYTE	$78	;    **** 
-	.BYTE	$84	;   *    *
-	.BYTE	$02	;  *      
-	.BYTE	$02	;  *      
-	.BYTE	$02	;  *      
-	.BYTE	$84	;   *    *
-	.BYTE	$78	;    **** 
+	.BYTE	$00 >> 1;         
+	.BYTE	$78 >> 1;    **** 
+	.BYTE	$84 >> 1;   *    *
+	.BYTE	$02 >> 1;  *      
+	.BYTE	$02 >> 1;  *      
+	.BYTE	$02 >> 1;  *      
+	.BYTE	$84 >> 1;   *    *
+	.BYTE	$78 >> 1;    **** 
 
 ; ASCII character 0x44 ...
-	.BYTE	$00	;         
-	.BYTE	$7E	;  ****** 
-	.BYTE	$84	;   *    *
-	.BYTE	$84	;   *    *
-	.BYTE	$84	;   *    *
-	.BYTE	$84	;   *    *
-	.BYTE	$84	;   *    *
-	.BYTE	$7E	;  ****** 
+	.BYTE	$00 >> 1;         
+	.BYTE	$7E >> 1;  ****** 
+	.BYTE	$84 >> 1;   *    *
+	.BYTE	$84 >> 1;   *    *
+	.BYTE	$84 >> 1;   *    *
+	.BYTE	$84 >> 1;   *    *
+	.BYTE	$84 >> 1;   *    *
+	.BYTE	$7E >> 1;  ****** 
 
 ; ASCII character 0x45 ...
-	.BYTE	$00	;         
-	.BYTE	$FE	;  *******
-	.BYTE	$02	;  *      
-	.BYTE	$02	;  *      
-	.BYTE	$1E	;  ****   
-	.BYTE	$02	;  *      
-	.BYTE	$02	;  *      
-	.BYTE	$FE	;  *******
+	.BYTE	$00 >> 1;         
+	.BYTE	$FE >> 1;  *******
+	.BYTE	$02 >> 1;  *      
+	.BYTE	$02 >> 1;  *      
+	.BYTE	$1E >> 1;  ****   
+	.BYTE	$02 >> 1;  *      
+	.BYTE	$02 >> 1;  *      
+	.BYTE	$FE >> 1;  *******
 
 ; ASCII character 0x46 ...
-	.BYTE	$00	;         
-	.BYTE	$FE	;  *******
-	.BYTE	$02	;  *      
-	.BYTE	$02	;  *      
-	.BYTE	$1E	;  ****   
-	.BYTE	$02	;  *      
-	.BYTE	$02	;  *      
-	.BYTE	$02	;  *      
+	.BYTE	$00 >> 1;         
+	.BYTE	$FE >> 1;  *******
+	.BYTE	$02 >> 1;  *      
+	.BYTE	$02 >> 1;  *      
+	.BYTE	$1E >> 1;  ****   
+	.BYTE	$02 >> 1;  *      
+	.BYTE	$02 >> 1;  *      
+	.BYTE	$02 >> 1;  *      
 
 ; ASCII character 0x47 ...
-	.BYTE	$00	;         
-	.BYTE	$7C	;   ***** 
-	.BYTE	$82	;  *     *
-	.BYTE	$02	;  *      
-	.BYTE	$E2	;  *   ***
-	.BYTE	$82	;  *     *
-	.BYTE	$82	;  *     *
-	.BYTE	$7C	;   ***** 
+	.BYTE	$00 >> 1;         
+	.BYTE	$7C >> 1;   ***** 
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$02 >> 1;  *      
+	.BYTE	$E2 >> 1;  *   ***
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$7C >> 1;   ***** 
 
 ; ASCII character 0x48 ...
-	.BYTE	$00	;         
-	.BYTE	$82	;  *     *
-	.BYTE	$82	;  *     *
-	.BYTE	$82	;  *     *
-	.BYTE	$FE	;  *******
-	.BYTE	$82	;  *     *
-	.BYTE	$82	;  *     *
-	.BYTE	$82	;  *     *
+	.BYTE	$00 >> 1;         
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$FE >> 1;  *******
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$82 >> 1;  *     *
 
 ; ASCII character 0x49 ...
-	.BYTE	$00	;         
-	.BYTE	$7C	;   ***** 
-	.BYTE	$10	;     *   
-	.BYTE	$10	;     *   
-	.BYTE	$10	;     *   
-	.BYTE	$10	;     *   
-	.BYTE	$10	;     *   
-	.BYTE	$7C	;   ***** 
+	.BYTE	$00 >> 1;         
+	.BYTE	$7C >> 1;   ***** 
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$7C >> 1;   ***** 
 
 ; ASCII character 0x4A ...
-	.BYTE	$00	;         
-	.BYTE	$80	;        *
-	.BYTE	$80	;        *
-	.BYTE	$80	;        *
-	.BYTE	$80	;        *
-	.BYTE	$80	;        *
-	.BYTE	$82	;  *     *
-	.BYTE	$7C	;   ***** 
+	.BYTE	$00 >> 1;         
+	.BYTE	$80 >> 1;        *
+	.BYTE	$80 >> 1;        *
+	.BYTE	$80 >> 1;        *
+	.BYTE	$80 >> 1;        *
+	.BYTE	$80 >> 1;        *
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$7C >> 1;   ***** 
 
 ; ASCII character 0x4B ...
-	.BYTE	$00	;         
-	.BYTE	$82	;  *     *
-	.BYTE	$62	;  *   ** 
-	.BYTE	$1A	;  * **   
-	.BYTE	$06	;  **     
-	.BYTE	$1A	;  * **   
-	.BYTE	$62	;  *   ** 
-	.BYTE	$82	;  *     *
+	.BYTE	$00 >> 1;         
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$62 >> 1;  *   ** 
+	.BYTE	$1A >> 1;  * **   
+	.BYTE	$06 >> 1;  **     
+	.BYTE	$1A >> 1;  * **   
+	.BYTE	$62 >> 1;  *   ** 
+	.BYTE	$82 >> 1;  *     *
 
 ; ASCII character 0x4C ...
-	.BYTE	$00	;         
-	.BYTE	$02	;  *      
-	.BYTE	$02	;  *      
-	.BYTE	$02	;  *      
-	.BYTE	$02	;  *      
-	.BYTE	$02	;  *      
-	.BYTE	$02	;  *      
-	.BYTE	$FE	;  *******
+	.BYTE	$00 >> 1;         
+	.BYTE	$02 >> 1;  *      
+	.BYTE	$02 >> 1;  *      
+	.BYTE	$02 >> 1;  *      
+	.BYTE	$02 >> 1;  *      
+	.BYTE	$02 >> 1;  *      
+	.BYTE	$02 >> 1;  *      
+	.BYTE	$FE >> 1;  *******
 
 ; ASCII character 0x4D ...
-	.BYTE	$00	;         
-	.BYTE	$82	;  *     *
-	.BYTE	$C6	;  **   **
-	.BYTE	$AA	;  * * * *
-	.BYTE	$92	;  *  *  *
-	.BYTE	$82	;  *     *
-	.BYTE	$82	;  *     *
-	.BYTE	$82	;  *     *
+	.BYTE	$00 >> 1;         
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$C6 >> 1;  **   **
+	.BYTE	$AA >> 1;  * * * *
+	.BYTE	$92 >> 1;  *  *  *
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$82 >> 1;  *     *
 
 ; ASCII character 0x4E ...
-	.BYTE	$00	;         
-	.BYTE	$82	;  *     *
-	.BYTE	$86	;  **    *
-	.BYTE	$8A	;  * *   *
-	.BYTE	$92	;  *  *  *
-	.BYTE	$A2	;  *   * *
-	.BYTE	$C2	;  *    **
-	.BYTE	$82	;  *     *
+	.BYTE	$00 >> 1;         
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$86 >> 1;  **    *
+	.BYTE	$8A >> 1;  * *   *
+	.BYTE	$92 >> 1;  *  *  *
+	.BYTE	$A2 >> 1;  *   * *
+	.BYTE	$C2 >> 1;  *    **
+	.BYTE	$82 >> 1;  *     *
 
 ; ASCII character 0x4F ...
-	.BYTE	$00	;         
-	.BYTE	$7C	;   ***** 
-	.BYTE	$82	;  *     *
-	.BYTE	$82	;  *     *
-	.BYTE	$82	;  *     *
-	.BYTE	$82	;  *     *
-	.BYTE	$82	;  *     *
-	.BYTE	$7C	;   ***** 
+	.BYTE	$00 >> 1;         
+	.BYTE	$7C >> 1;   ***** 
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$7C >> 1;   ***** 
 
 ; ASCII character 0x50 ...
-	.BYTE	$00	;         
-	.BYTE	$7E	;  ****** 
-	.BYTE	$82	;  *     *
-	.BYTE	$82	;  *     *
-	.BYTE	$7E	;  ****** 
-	.BYTE	$02	;  *      
-	.BYTE	$02	;  *      
-	.BYTE	$02	;  *      
+	.BYTE	$00 >> 1;         
+	.BYTE	$7E >> 1;  ****** 
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$7E >> 1;  ****** 
+	.BYTE	$02 >> 1;  *      
+	.BYTE	$02 >> 1;  *      
+	.BYTE	$02 >> 1;  *      
 
 ; ASCII character 0x51 ...
-	.BYTE	$00	;         
-	.BYTE	$7C	;   ***** 
-	.BYTE	$82	;  *     *
-	.BYTE	$82	;  *     *
-	.BYTE	$82	;  *     *
-	.BYTE	$A2	;  *   * *
-	.BYTE	$42	;  *    * 
-	.BYTE	$BC	;   **** *
+	.BYTE	$00 >> 1;         
+	.BYTE	$7C >> 1;   ***** 
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$A2 >> 1;  *   * *
+	.BYTE	$42 >> 1;  *    * 
+	.BYTE	$BC >> 1;   **** *
 
 ; ASCII character 0x52 ...
-	.BYTE	$00	;         
-	.BYTE	$7E	;  ****** 
-	.BYTE	$82	;  *     *
-	.BYTE	$82	;  *     *
-	.BYTE	$7E	;  ****** 
-	.BYTE	$22	;  *   *  
-	.BYTE	$42	;  *    * 
-	.BYTE	$82	;  *     *
+	.BYTE	$00 >> 1;         
+	.BYTE	$7E >> 1;  ****** 
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$7E >> 1;  ****** 
+	.BYTE	$22 >> 1;  *   *  
+	.BYTE	$42 >> 1;  *    * 
+	.BYTE	$82 >> 1;  *     *
 
 ; ASCII character 0x53 ...
-	.BYTE	$00	;         
-	.BYTE	$7C	;   ***** 
-	.BYTE	$82	;  *     *
-	.BYTE	$02	;  *      
-	.BYTE	$7C	;   ***** 
-	.BYTE	$80	;        *
-	.BYTE	$82	;  *     *
-	.BYTE	$7C	;   ***** 
+	.BYTE	$00 >> 1;         
+	.BYTE	$7C >> 1;   ***** 
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$02 >> 1;  *      
+	.BYTE	$7C >> 1;   ***** 
+	.BYTE	$80 >> 1;        *
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$7C >> 1;   ***** 
 
 ; ASCII character 0x54 ...
-	.BYTE	$00	;         
-	.BYTE	$FE	;  *******
-	.BYTE	$10	;     *   
-	.BYTE	$10	;     *   
-	.BYTE	$10	;     *   
-	.BYTE	$10	;     *   
-	.BYTE	$10	;     *   
-	.BYTE	$10	;     *   
+	.BYTE	$00 >> 1;         
+	.BYTE	$FE >> 1;  *******
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$10 >> 1;     *   
 
 ; ASCII character 0x55 ...
-	.BYTE	$00	;         
-	.BYTE	$82	;  *     *
-	.BYTE	$82	;  *     *
-	.BYTE	$82	;  *     *
-	.BYTE	$82	;  *     *
-	.BYTE	$82	;  *     *
-	.BYTE	$82	;  *     *
-	.BYTE	$7C	;   ***** 
+	.BYTE	$00 >> 1;         
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$7C >> 1;   ***** 
 
 ; ASCII character 0x56 ...
-	.BYTE	$00	;         
-	.BYTE	$82	;  *     *
-	.BYTE	$82	;  *     *
-	.BYTE	$44	;   *   * 
-	.BYTE	$44	;   *   * 
-	.BYTE	$28	;    * *  
-	.BYTE	$28	;    * *  
-	.BYTE	$10	;     *   
+	.BYTE	$00 >> 1;         
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$44 >> 1;   *   * 
+	.BYTE	$44 >> 1;   *   * 
+	.BYTE	$28 >> 1;    * *  
+	.BYTE	$28 >> 1;    * *  
+	.BYTE	$10 >> 1;     *   
 
 ; ASCII character 0x57 ...
-	.BYTE	$00	;         
-	.BYTE	$82	;  *     *
-	.BYTE	$82	;  *     *
-	.BYTE	$82	;  *     *
-	.BYTE	$92	;  *  *  *
-	.BYTE	$92	;  *  *  *
-	.BYTE	$AA	;  * * * *
-	.BYTE	$44	;   *   * 
+	.BYTE	$00 >> 1;         
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$92 >> 1;  *  *  *
+	.BYTE	$92 >> 1;  *  *  *
+	.BYTE	$AA >> 1;  * * * *
+	.BYTE	$44 >> 1;   *   * 
 
 ; ASCII character 0x58 ...
-	.BYTE	$00	;         
-	.BYTE	$82	;  *     *
-	.BYTE	$44	;   *   * 
-	.BYTE	$28	;    * *  
-	.BYTE	$10	;     *   
-	.BYTE	$28	;    * *  
-	.BYTE	$44	;   *   * 
-	.BYTE	$82	;  *     *
+	.BYTE	$00 >> 1;         
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$44 >> 1;   *   * 
+	.BYTE	$28 >> 1;    * *  
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$28 >> 1;    * *  
+	.BYTE	$44 >> 1;   *   * 
+	.BYTE	$82 >> 1;  *     *
 
 ; ASCII character 0x59 ...
-	.BYTE	$00	;         
-	.BYTE	$82	;  *     *
-	.BYTE	$44	;   *   * 
-	.BYTE	$28	;    * *  
-	.BYTE	$10	;     *   
-	.BYTE	$10	;     *   
-	.BYTE	$10	;     *   
-	.BYTE	$10	;     *   
+	.BYTE	$00 >> 1;         
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$44 >> 1;   *   * 
+	.BYTE	$28 >> 1;    * *  
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$10 >> 1;     *   
 
 ; ASCII character 0x5A ...
-	.BYTE	$00	;         
-	.BYTE	$FE	;  *******
-	.BYTE	$40	;       * 
-	.BYTE	$20	;      *  
-	.BYTE	$10	;     *   
-	.BYTE	$08	;    *    
-	.BYTE	$04	;   *     
-	.BYTE	$FE	;  *******
+	.BYTE	$00 >> 1;         
+	.BYTE	$FE >> 1;  *******
+	.BYTE	$40 >> 1;       * 
+	.BYTE	$20 >> 1;      *  
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$08 >> 1;    *    
+	.BYTE	$04 >> 1;   *     
+	.BYTE	$FE >> 1;  *******
 
 ; ASCII character 0x5B ...
-	.BYTE	$00	;         
-	.BYTE	$3C	;   ****  
-	.BYTE	$0C	;   **    
-	.BYTE	$0C	;   **    
-	.BYTE	$0C	;   **    
-	.BYTE	$0C	;   **    
-	.BYTE	$0C	;   **    
-	.BYTE	$3C	;   ****  
+	.BYTE	$00 >> 1;         
+	.BYTE	$3C >> 1;   ****  
+	.BYTE	$0C >> 1;   **    
+	.BYTE	$0C >> 1;   **    
+	.BYTE	$0C >> 1;   **    
+	.BYTE	$0C >> 1;   **    
+	.BYTE	$0C >> 1;   **    
+	.BYTE	$3C >> 1;   ****  
 
 ; ASCII character 0x5C ...
-	.BYTE	$00	;         
-	.BYTE	$02	;  *      
-	.BYTE	$04	;   *     
-	.BYTE	$08	;    *    
-	.BYTE	$10	;     *   
-	.BYTE	$20	;      *  
-	.BYTE	$40	;       * 
-	.BYTE	$80	;        *
+	.BYTE	$00 >> 1;         
+	.BYTE	$02 >> 1;  *      
+	.BYTE	$04 >> 1;   *     
+	.BYTE	$08 >> 1;    *    
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$20 >> 1;      *  
+	.BYTE	$40 >> 1;       * 
+	.BYTE	$80 >> 1;        *
 
 ; ASCII character 0x5D ...
-	.BYTE	$00	;         
-	.BYTE	$78	;    **** 
-	.BYTE	$60	;      ** 
-	.BYTE	$60	;      ** 
-	.BYTE	$60	;      ** 
-	.BYTE	$60	;      ** 
-	.BYTE	$60	;      ** 
-	.BYTE	$78	;    **** 
+	.BYTE	$00 >> 1;         
+	.BYTE	$78 >> 1;    **** 
+	.BYTE	$60 >> 1;      ** 
+	.BYTE	$60 >> 1;      ** 
+	.BYTE	$60 >> 1;      ** 
+	.BYTE	$60 >> 1;      ** 
+	.BYTE	$60 >> 1;      ** 
+	.BYTE	$78 >> 1;    **** 
 
 ; ASCII character 0x5E ...
-	.BYTE	$00	;         
-	.BYTE	$10	;     *   
-	.BYTE	$28	;    * *  
-	.BYTE	$44	;   *   * 
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$28 >> 1;    * *  
+	.BYTE	$44 >> 1;   *   * 
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
 
 ; ASCII character 0x5F ...
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$FE	;  *******
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$FE >> 1;  *******
 
 ; ASCII character 0x60 ...
-	.BYTE	$00	;         
-	.BYTE	$18	;    **   
-	.BYTE	$10	;     *   
-	.BYTE	$20	;      *  
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$18 >> 1;    **   
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$20 >> 1;      *  
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
 
 ; ASCII character 0x61 ...
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$7C	;   ***** 
-	.BYTE	$80	;        *
-	.BYTE	$FC	;   ******
-	.BYTE	$82	;  *     *
-	.BYTE	$FC	;   ******
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$7C >> 1;   ***** 
+	.BYTE	$80 >> 1;        *
+	.BYTE	$FC >> 1;   ******
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$FC >> 1;   ******
 
 ; ASCII character 0x62 ...
-	.BYTE	$00	;         
-	.BYTE	$02	;  *      
-	.BYTE	$02	;  *      
-	.BYTE	$7A	;  * **** 
-	.BYTE	$86	;  **    *
-	.BYTE	$82	;  *     *
-	.BYTE	$86	;  **    *
-	.BYTE	$7A	;  * **** 
+	.BYTE	$00 >> 1;         
+	.BYTE	$02 >> 1;  *      
+	.BYTE	$02 >> 1;  *      
+	.BYTE	$7A >> 1;  * **** 
+	.BYTE	$86 >> 1;  **    *
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$86 >> 1;  **    *
+	.BYTE	$7A >> 1;  * **** 
 
 ; ASCII character 0x63 ...
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$7C	;   ***** 
-	.BYTE	$82	;  *     *
-	.BYTE	$02	;  *      
-	.BYTE	$02	;  *      
-	.BYTE	$FC	;   ******
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$7C >> 1;   ***** 
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$02 >> 1;  *      
+	.BYTE	$02 >> 1;  *      
+	.BYTE	$FC >> 1;   ******
 
 ; ASCII character 0x64 ...
-	.BYTE	$00	;         
-	.BYTE	$80	;        *
-	.BYTE	$80	;        *
-	.BYTE	$BC	;   **** *
-	.BYTE	$C2	;  *    **
-	.BYTE	$82	;  *     *
-	.BYTE	$C2	;  *    **
-	.BYTE	$BC	;   **** *
+	.BYTE	$00 >> 1;         
+	.BYTE	$80 >> 1;        *
+	.BYTE	$80 >> 1;        *
+	.BYTE	$BC >> 1;   **** *
+	.BYTE	$C2 >> 1;  *    **
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$C2 >> 1;  *    **
+	.BYTE	$BC >> 1;   **** *
 
 ; ASCII character 0x65 ...
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$3C	;   ****  
-	.BYTE	$42	;  *    * 
-	.BYTE	$FE	;  *******
-	.BYTE	$02	;  *      
-	.BYTE	$7C	;   ***** 
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$3C >> 1;   ****  
+	.BYTE	$42 >> 1;  *    * 
+	.BYTE	$FE >> 1;  *******
+	.BYTE	$02 >> 1;  *      
+	.BYTE	$7C >> 1;   ***** 
 
 ; ASCII character 0x66 ...
-	.BYTE	$00	;         
-	.BYTE	$70	;     *** 
-	.BYTE	$88	;    *   *
-	.BYTE	$3E	;  *****  
-	.BYTE	$08	;    *    
-	.BYTE	$08	;    *    
-	.BYTE	$08	;    *    
-	.BYTE	$08	;    *    
+	.BYTE	$00 >> 1;         
+	.BYTE	$70 >> 1;     *** 
+	.BYTE	$88 >> 1;    *   *
+	.BYTE	$3E >> 1;  *****  
+	.BYTE	$08 >> 1;    *    
+	.BYTE	$08 >> 1;    *    
+	.BYTE	$08 >> 1;    *    
+	.BYTE	$08 >> 1;    *    
 
 ; ASCII character 0x67 ...
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$B8	;    *** *
-	.BYTE	$44	;   *   * 
-	.BYTE	$78	;    **** 
-	.BYTE	$42	;  *    * 
-	.BYTE	$3C	;   ****  
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$B8 >> 1;    *** *
+	.BYTE	$44 >> 1;   *   * 
+	.BYTE	$78 >> 1;    **** 
+	.BYTE	$42 >> 1;  *    * 
+	.BYTE	$3C >> 1;   ****  
 
 ; ASCII character 0x68 ...
-	.BYTE	$00	;         
-	.BYTE	$02	;  *      
-	.BYTE	$02	;  *      
-	.BYTE	$7E	;  ****** 
-	.BYTE	$82	;  *     *
-	.BYTE	$82	;  *     *
-	.BYTE	$82	;  *     *
-	.BYTE	$82	;  *     *
+	.BYTE	$00 >> 1;         
+	.BYTE	$02 >> 1;  *      
+	.BYTE	$02 >> 1;  *      
+	.BYTE	$7E >> 1;  ****** 
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$82 >> 1;  *     *
 
 ; ASCII character 0x69 ...
-	.BYTE	$00	;         
-	.BYTE	$10	;     *   
-	.BYTE	$00	;         
-	.BYTE	$18	;    **   
-	.BYTE	$10	;     *   
-	.BYTE	$10	;     *   
-	.BYTE	$10	;     *   
-	.BYTE	$7C	;   ***** 
+	.BYTE	$00 >> 1;         
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$00 >> 1;         
+	.BYTE	$18 >> 1;    **   
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$7C >> 1;   ***** 
 
 ; ASCII character 0x6A ...
-	.BYTE	$00	;         
-	.BYTE	$80	;        *
-	.BYTE	$00	;         
-	.BYTE	$80	;        *
-	.BYTE	$80	;        *
-	.BYTE	$80	;        *
-	.BYTE	$82	;  *     *
-	.BYTE	$7C	;   ***** 
+	.BYTE	$00 >> 1;         
+	.BYTE	$80 >> 1;        *
+	.BYTE	$00 >> 1;         
+	.BYTE	$80 >> 1;        *
+	.BYTE	$80 >> 1;        *
+	.BYTE	$80 >> 1;        *
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$7C >> 1;   ***** 
 
 ; ASCII character 0x6B ...
-	.BYTE	$00	;         
-	.BYTE	$02	;  *      
-	.BYTE	$02	;  *      
-	.BYTE	$22	;  *   *  
-	.BYTE	$12	;  *  *   
-	.BYTE	$0A	;  * *    
-	.BYTE	$22	;  *   *  
-	.BYTE	$82	;  *     *
+	.BYTE	$00 >> 1;         
+	.BYTE	$02 >> 1;  *      
+	.BYTE	$02 >> 1;  *      
+	.BYTE	$22 >> 1;  *   *  
+	.BYTE	$12 >> 1;  *  *   
+	.BYTE	$0A >> 1;  * *    
+	.BYTE	$22 >> 1;  *   *  
+	.BYTE	$82 >> 1;  *     *
 
 ; ASCII character 0x6C ...
-	.BYTE	$00	;         
-	.BYTE	$18	;    **   
-	.BYTE	$10	;     *   
-	.BYTE	$10	;     *   
-	.BYTE	$10	;     *   
-	.BYTE	$10	;     *   
-	.BYTE	$10	;     *   
-	.BYTE	$38	;    ***  
+	.BYTE	$00 >> 1;         
+	.BYTE	$18 >> 1;    **   
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$38 >> 1;    ***  
 
 ; ASCII character 0x6D ...
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$6E	;  *** ** 
-	.BYTE	$92	;  *  *  *
-	.BYTE	$92	;  *  *  *
-	.BYTE	$92	;  *  *  *
-	.BYTE	$92	;  *  *  *
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$6E >> 1;  *** ** 
+	.BYTE	$92 >> 1;  *  *  *
+	.BYTE	$92 >> 1;  *  *  *
+	.BYTE	$92 >> 1;  *  *  *
+	.BYTE	$92 >> 1;  *  *  *
 
 ; ASCII character 0x6E ...
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$7A	;  * **** 
-	.BYTE	$86	;  **    *
-	.BYTE	$82	;  *     *
-	.BYTE	$82	;  *     *
-	.BYTE	$82	;  *     *
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$7A >> 1;  * **** 
+	.BYTE	$86 >> 1;  **    *
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$82 >> 1;  *     *
 
 ; ASCII character 0x6F ...
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$7C	;   ***** 
-	.BYTE	$82	;  *     *
-	.BYTE	$82	;  *     *
-	.BYTE	$82	;  *     *
-	.BYTE	$7C	;   ***** 
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$7C >> 1;   ***** 
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$7C >> 1;   ***** 
 
 ; ASCII character 0x70 ...
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$7A	;  * **** 
-	.BYTE	$86	;  **    *
-	.BYTE	$7E	;  ****** 
-	.BYTE	$02	;  *      
-	.BYTE	$02	;  *      
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$7A >> 1;  * **** 
+	.BYTE	$86 >> 1;  **    *
+	.BYTE	$7E >> 1;  ****** 
+	.BYTE	$02 >> 1;  *      
+	.BYTE	$02 >> 1;  *      
 
 ; ASCII character 0x71 ...
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$BC	;   **** *
-	.BYTE	$C2	;  *    **
-	.BYTE	$FC	;   ******
-	.BYTE	$80	;        *
-	.BYTE	$80	;        *
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$BC >> 1;   **** *
+	.BYTE	$C2 >> 1;  *    **
+	.BYTE	$FC >> 1;   ******
+	.BYTE	$80 >> 1;        *
+	.BYTE	$80 >> 1;        *
 
 ; ASCII character 0x72 ...
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$72	;  *  *** 
-	.BYTE	$8C	;   **   *
-	.BYTE	$04	;   *     
-	.BYTE	$04	;   *     
-	.BYTE	$04	;   *     
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$72 >> 1;  *  *** 
+	.BYTE	$8C >> 1;   **   *
+	.BYTE	$04 >> 1;   *     
+	.BYTE	$04 >> 1;   *     
+	.BYTE	$04 >> 1;   *     
 
 ; ASCII character 0x73 ...
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$7C	;   ***** 
-	.BYTE	$02	;  *      
-	.BYTE	$7C	;   ***** 
-	.BYTE	$80	;        *
-	.BYTE	$7E	;  ****** 
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$7C >> 1;   ***** 
+	.BYTE	$02 >> 1;  *      
+	.BYTE	$7C >> 1;   ***** 
+	.BYTE	$80 >> 1;        *
+	.BYTE	$7E >> 1;  ****** 
 
 ; ASCII character 0x74 ...
-	.BYTE	$00	;         
-	.BYTE	$08	;    *    
-	.BYTE	$08	;    *    
-	.BYTE	$3E	;  *****  
-	.BYTE	$08	;    *    
-	.BYTE	$08	;    *    
-	.BYTE	$48	;    *  * 
-	.BYTE	$30	;     **  
+	.BYTE	$00 >> 1;         
+	.BYTE	$08 >> 1;    *    
+	.BYTE	$08 >> 1;    *    
+	.BYTE	$3E >> 1;  *****  
+	.BYTE	$08 >> 1;    *    
+	.BYTE	$08 >> 1;    *    
+	.BYTE	$48 >> 1;    *  * 
+	.BYTE	$30 >> 1;     **  
 
 ; ASCII character 0x75 ...
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$42	;  *    * 
-	.BYTE	$42	;  *    * 
-	.BYTE	$42	;  *    * 
-	.BYTE	$42	;  *    * 
-	.BYTE	$BC	;   **** *
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$42 >> 1;  *    * 
+	.BYTE	$42 >> 1;  *    * 
+	.BYTE	$42 >> 1;  *    * 
+	.BYTE	$42 >> 1;  *    * 
+	.BYTE	$BC >> 1;   **** *
 
 ; ASCII character 0x76 ...
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$82	;  *     *
-	.BYTE	$82	;  *     *
-	.BYTE	$44	;   *   * 
-	.BYTE	$28	;    * *  
-	.BYTE	$10	;     *   
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$44 >> 1;   *   * 
+	.BYTE	$28 >> 1;    * *  
+	.BYTE	$10 >> 1;     *   
 
 ; ASCII character 0x77 ...
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$82	;  *     *
-	.BYTE	$82	;  *     *
-	.BYTE	$92	;  *  *  *
-	.BYTE	$AA	;  * * * *
-	.BYTE	$44	;   *   * 
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$92 >> 1;  *  *  *
+	.BYTE	$AA >> 1;  * * * *
+	.BYTE	$44 >> 1;   *   * 
 
 ; ASCII character 0x78 ...
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$42	;  *    * 
-	.BYTE	$24	;   *  *  
-	.BYTE	$18	;    **   
-	.BYTE	$24	;   *  *  
-	.BYTE	$42	;  *    * 
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$42 >> 1;  *    * 
+	.BYTE	$24 >> 1;   *  *  
+	.BYTE	$18 >> 1;    **   
+	.BYTE	$24 >> 1;   *  *  
+	.BYTE	$42 >> 1;  *    * 
 
 ; ASCII character 0x79 ...
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$82	;  *     *
-	.BYTE	$44	;   *   * 
-	.BYTE	$28	;    * *  
-	.BYTE	$10	;     *   
-	.BYTE	$0E	;  ***    
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$82 >> 1;  *     *
+	.BYTE	$44 >> 1;   *   * 
+	.BYTE	$28 >> 1;    * *  
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$0E >> 1;  ***    
 
 ; ASCII character 0x7A ...
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$FE	;  *******
-	.BYTE	$40	;       * 
-	.BYTE	$38	;    ***  
-	.BYTE	$04	;   *     
-	.BYTE	$FE	;  *******
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$FE >> 1;  *******
+	.BYTE	$40 >> 1;       * 
+	.BYTE	$38 >> 1;    ***  
+	.BYTE	$04 >> 1;   *     
+	.BYTE	$FE >> 1;  *******
 
 ; ASCII character 0x7B ...
-	.BYTE	$00	;         
-	.BYTE	$E0	;      ***
-	.BYTE	$10	;     *   
-	.BYTE	$10	;     *   
-	.BYTE	$0E	;  ***    
-	.BYTE	$10	;     *   
-	.BYTE	$10	;     *   
-	.BYTE	$E0	;      ***
+	.BYTE	$00 >> 1;         
+	.BYTE	$E0 >> 1;      ***
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$0E >> 1;  ***    
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$E0 >> 1;      ***
 
 ; ASCII character 0x7C ...
-	.BYTE	$00	;         
-	.BYTE	$10	;     *   
-	.BYTE	$10	;     *   
-	.BYTE	$10	;     *   
-	.BYTE	$00	;         
-	.BYTE	$10	;     *   
-	.BYTE	$10	;     *   
-	.BYTE	$10	;     *   
+	.BYTE	$00 >> 1;         
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$00 >> 1;         
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$10 >> 1;     *   
 
 ; ASCII character 0x7D ...
-	.BYTE	$00	;         
-	.BYTE	$0E	;  ***    
-	.BYTE	$10	;     *   
-	.BYTE	$10	;     *   
-	.BYTE	$E0	;      ***
-	.BYTE	$10	;     *   
-	.BYTE	$10	;     *   
-	.BYTE	$0E	;  ***    
+	.BYTE	$00 >> 1;         
+	.BYTE	$0E >> 1;  ***    
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$E0 >> 1;      ***
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$10 >> 1;     *   
+	.BYTE	$0E >> 1;  ***    
 
 ; ASCII character 0x7E ...
-	.BYTE	$00	;         
-	.BYTE	$88	;    *   *
-	.BYTE	$54	;   * * * 
-	.BYTE	$22	;  *   *  
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$88 >> 1;    *   *
+	.BYTE	$54 >> 1;   * * * 
+	.BYTE	$22 >> 1;  *   *  
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
 
 ; ASCII character 0x7F ...
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
-	.BYTE	$00	;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
+	.BYTE	$00 >> 1;         
 
 	.SBTTL	Font 2 Scanlines 9-16
 	.ORG	$0C00
