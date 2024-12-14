@@ -44,7 +44,7 @@
 # the only supported PIXELCLOCKs are 1431810MHz or 12000000Hz.  GLYPHWIDTH
 # may be either 8 or 9, but is only supported for the 14.31818MHz PIXELCLOCK.
 # For the 12MHz PIXELCLOCK it is ignored.
-CPUCLOCK=40000
+CPUCLOCK=24576
 PIXELCLOCK=14318180
 GLYPHWIDTH=8
 
