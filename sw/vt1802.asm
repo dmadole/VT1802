@@ -3798,9 +3798,9 @@ RSTIO1:	CALL(SIN)		; SW6=0 -> select serial port for input
 ;
 ;   Note that, unlike SAV, the RET instruction DOES increment X!
 ;--
-ISRRET:	SEX SP\ INC SP		; point SP back to the saved D register
-ISRRE1:	LDXA\ SHL		; restore DF
-	LDXA			; restore D
+ISRRET:	INC SP			; point SP back to the saved D register
+	LDA SP\ SHL		; restore DF
+	LDA SP			; restore D
 	RET			; and restore (X,P)
 
 ;++
