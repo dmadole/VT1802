@@ -40,17 +40,17 @@
 #  2-DEC-24	RLA	Add GLYPHWIDTH parameter.
 #--
 
-#    VT1802 assembly options.  Note that the only supported CPUCLOCKS are
-# 2457600Hz or 3579545Hz, and the only supported PIXELCLOCKs are 1431810MHz
-# or 12000000Hz.  GLYPHWIDTH may be either 8 or 9, but is only supported for
-# the 14.31818MHz PIXELCLOCK.  For the 12MHz PIXELCLOCK it is ignored.
-CPUCLOCK=2457600
+#    VT1802 assembly options.  CPUCLOCK is in units of 100 Hertz. Note that
+# the only supported PIXELCLOCKs are 1431810MHz or 12000000Hz.  GLYPHWIDTH
+# may be either 8 or 9, but is only supported for the 14.31818MHz PIXELCLOCK.
+# For the 12MHz PIXELCLOCK it is ignored.
+CPUCLOCK=40000
 PIXELCLOCK=14318180
 GLYPHWIDTH=8
 
 # Tool paths and options - you can change these as necessary...
 TASM=$(shell which tasm)
-export TASMTABS=$(dir $(TASM))
+export TASMTABS=/usr/local/lib/tasm
 TASMOPTS=-t1802 -x1 -lat -g0 -i -p44 -DTASM -DVT1802 \
 	 -DCPUCLOCK=$(CPUCLOCK) -DPIXELCLOCK=$(PIXELCLOCK) -DGLYPHWIDTH=$(GLYPHWIDTH)
 A18=$(shell which a18)

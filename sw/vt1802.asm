@@ -480,25 +480,13 @@ AUX	.EQU	$F	; used by SCRT to preserve D
 #define LBL	LBNF
 #define LSL	LSNF
 
-;   This delay macro is calculated based on a 2.4576MHz clock frequency.  Each
-; major cycle (8 clocks) requires 3.255us, and a two millisecond delay needs
-; exactly 614.44 major cycles.  The following loop uses 4 major cycles per
-; iteration, so a count of 153 gives 612 clocks.  Adding in two more for the
-; LDI and three more for the final NOP gives us a grand total of 614.  That's
-; as close as we're gonna get!
-;
-;  There's an alternative constant here calculated for a 3.579545MHz CPU 
-; crystal instead.  That gives a major cycle of 2.235us, so a two millisecond
-; delay needs 894.89 major cycles.  That gives a loop count of 223 for 892
-; cycles, and the final NOP gives 3 more for a total of 895 cycles.  That's
-; pretty close!
-	.IF	CPUCLOCK == 2457600
-DLYCONS	.EQU	153	; magic constant for 2mS at 2.4576MHz
-	.ENDIF
-	.IF	CPUCLOCK == 3579545
-DLYCONS	.EQU	223		; magic constant for 2ms at 3.579545MHz
-	.ENDIF
-#define DLY2MS	LDI DLYCONS\ SMI 1\ BNZ $-2\ NOP
+;   This macro delays for 2 ms which is calculated from the clock frequency
+; given in 100 Hz units. Since each loop of the delay takes four instructions,
+; which is eight machine cycles, we multiply this times 2000 which is the
+; number of microseconds in 2 ms giving 16000; since the clock frequency is
+; already divided by 100 (to keep it in 16 bits) this gives 160 for the
+; divisor here.
+#define DLY2MS	LDI (CPUCLOCK/160)\ SMI 1\ BNZ $-2\ NOP
 
 ; Enable and disable interrupts (P = PC) ...
 #define ION	SEX PC\ RET\ .BYTE (SP<<4) | PC
@@ -3188,46 +3176,28 @@ PNOTE9:	SDF\ RETURN		; return DF=1 and leave P1 unchanged
 ; but that would have required another couple of flip flops to divide it down
 ; to the range to give audio frequencies.
 ;
-;   So, here are two tables of note  divisors - one for a 2.4579MHz CPU clock,
-; which is what you get if you don't install a crystal and use the baud clock
-; as the CPU clock.  There's another table here for a 3.579545Mhz CPU crystal.
-; There's a simple spreadsheet, NOTES.XLSX, included in the repository that
-; you can use to calculate divisors for other CPU frequencies.
-;--
-
-; Note frequencies for a 2.4576MHz CPU clock ...
-	.IF	CPUCLOCK == 2457600
-NOTES:	.DB	'C',     $49	; 0 middle C (with octave == 3)
-	.DB	'C'+80H, $45	; 1 C#/D-
-	.DB	'D',     $41	; 2 D
-	.DB	'D'+80H, $3D	; 3 D#/E-
-	.DB	'E',     $3A	; 4 E
-	.DB	'F',	 $36	; 5 F
-	.DB	'F'+80H, $33	; 6 F#/G-
-	.DB	'G',	 $30	; 7 G
-	.DB	'A'+80H, $2E	; 8 G#/A-
-	.DB	'A',     $2B	; 9 A
-	.DB	'B'+80H, $29	;10 A#/B-
-NOTEND:	.DB	'B',	 $26	;11 B
+;   The following tables of note divisors are calculated from the CPU clock
+; in Hertz divided by 100 (to keep within 16 bits) and taking into account
+; the pre-scaling of 8 from TPB, and 16 internal to the CDP1863. This gives
+; a ratio of 100/128 or 25/32 which is expressed in the formula as 5/4 x
+; 5/4 x 1/2 as this maximizes precision while remaining within 16 bits.
+; Keeping the last 1/2 separate also allows us to easily round the result.
+;
+; Note frequencies for octave = 3...
+;
+NOTES:	.DB	'C',     (CPUCLOCK/4*5/4*5/262+1)/2	; 0 middle C
+	.DB	'C'+80H, (CPUCLOCK/4*5/4*5/277+1)/2	; 1 C#/D-
+	.DB	'D',     (CPUCLOCK/4*5/4*5/294+1)/2	; 2 D
+	.DB	'D'+80H, (CPUCLOCK/4*5/4*5/311+1)/2	; 3 D#/E-
+	.DB	'E',     (CPUCLOCK/4*5/4*5/330+1)/2	; 4 E
+	.DB	'F',	 (CPUCLOCK/4*5/4*5/349+1)/2	; 5 F
+	.DB	'F'+80H, (CPUCLOCK/4*5/4*5/370+1)/2	; 6 F#/G-
+	.DB	'G',	 (CPUCLOCK/4*5/4*5/392+1)/2	; 7 G
+	.DB	'A'+80H, (CPUCLOCK/4*5/4*5/415+1)/2	; 8 G#/A-
+	.DB	'A',     (CPUCLOCK/4*5/4*5/440+1)/2	; 9 A
+	.DB	'B'+80H, (CPUCLOCK/4*5/4*5/466+1)/2	;10 A#/B-
+NOTEND:	.DB	'B',	 (CPUCLOCK/4*5/4*5/494+1)/2	;11 B
 	.DB	0
-	.ENDIF
-
-; Note frequencies for a 3.579545MHz CPU clock ...
-	.IF	CPUCLOCK == 3579545
-NOTES:	.DB	'C',     $6A	; 0 middle C (with octave == 3)
-	.DB	'C'+80H, $64	; 1 C#/D-
-	.DB	'D',     $5F	; 2 D
-	.DB	'D'+80H, $59	; 3 D#/E-
-	.DB	'E',     $54	; 4 E
-	.DB	'F',	 $50	; 5 F
-	.DB	'F'+80H, $4B	; 6 F#/G-
-	.DB	'G',	 $47	; 7 G
-	.DB	'A'+80H, $43	; 8 G#/A-
-	.DB	'A',     $3F	; 9 A
-	.DB	'B'+80H, $3B	;10 A#/B-
-NOTEND:	.DB	'B',	 $38	;11 B
-	.DB	0
-	.ENDIF
 
 	.SBTTL	Shift Octaves and Change Note Duration
 
