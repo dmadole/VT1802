@@ -50,7 +50,7 @@ GLYPHWIDTH=8
 
 # Tool paths and options - you can change these as necessary...
 TASM=$(shell which tasm)
-export TASMTABS=/usr/local/lib/tasm
+export TASMTABS=$(dir $(TASM))
 TASMOPTS=-t1802 -x1 -lat -g0 -i -p44 -DTASM -DVT1802 \
 	 -DCPUCLOCK=$(CPUCLOCK) -DPIXELCLOCK=$(PIXELCLOCK) -DGLYPHWIDTH=$(GLYPHWIDTH)
 A18=$(shell which a18)
