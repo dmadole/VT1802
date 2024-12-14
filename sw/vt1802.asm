@@ -480,13 +480,11 @@ AUX	.EQU	$F	; used by SCRT to preserve D
 #define LBL	LBNF
 #define LSL	LSNF
 
-;   This macro delays for 2 ms which is calculated from the clock frequency
-; given in 100 Hz units. Since each loop of the delay takes four instructions,
-; which is eight machine cycles, we multiply this times 2000 which is the
-; number of microseconds in 2 ms giving 16000; since the clock frequency is
-; already divided by 100 (to keep it in 16 bits) this gives 160 for the
-; divisor here.
-#define DLY2MS	LDI (CPUCLOCK/160)\ SMI 1\ BNZ $-2\ NOP
+;   This macro delays for 2 ms which is calculated from the clock frequency.
+; Since each loop of the delay takes four instructions, which is eight machine
+; cycles, we multiply this times 2000 which is the number of microseconds in
+; 2 ms giving 16000 as the divisor.
+#define DLY2MS	LDI (CPUCLOCK/16000)\ SMI 1\ BNZ $-2\ NOP
 
 ; Enable and disable interrupts (P = PC) ...
 #define ION	SEX PC\ RET\ .BYTE (SP<<4) | PC
@@ -3177,26 +3175,24 @@ PNOTE9:	SDF\ RETURN		; return DF=1 and leave P1 unchanged
 ; to the range to give audio frequencies.
 ;
 ;   The following tables of note divisors are calculated from the CPU clock
-; in Hertz divided by 100 (to keep within 16 bits) and taking into account
-; the pre-scaling of 8 from TPB, and 16 internal to the CDP1863. This gives
-; a ratio of 100/128 or 25/32 which is expressed in the formula as 5/4 x
-; 5/4 x 1/2 as this maximizes precision while remaining within 16 bits.
-; Keeping the last 1/2 separate also allows us to easily round the result.
+; in Hertz, taking into account the pre-scaling of 8 from TPB, and 16 internal
+; to the CDP1863. This gives a ratio of 1/128 which is expressed in the
+; formula as 1/64 x 1/2 to make it easy to round the result.
 ;
 ; Note frequencies for octave = 3...
 ;
-NOTES:	.DB	'C',     (CPUCLOCK/4*5/4*5/262+1)/2	; 0 middle C
-	.DB	'C'+80H, (CPUCLOCK/4*5/4*5/277+1)/2	; 1 C#/D-
-	.DB	'D',     (CPUCLOCK/4*5/4*5/294+1)/2	; 2 D
-	.DB	'D'+80H, (CPUCLOCK/4*5/4*5/311+1)/2	; 3 D#/E-
-	.DB	'E',     (CPUCLOCK/4*5/4*5/330+1)/2	; 4 E
-	.DB	'F',	 (CPUCLOCK/4*5/4*5/349+1)/2	; 5 F
-	.DB	'F'+80H, (CPUCLOCK/4*5/4*5/370+1)/2	; 6 F#/G-
-	.DB	'G',	 (CPUCLOCK/4*5/4*5/392+1)/2	; 7 G
-	.DB	'A'+80H, (CPUCLOCK/4*5/4*5/415+1)/2	; 8 G#/A-
-	.DB	'A',     (CPUCLOCK/4*5/4*5/440+1)/2	; 9 A
-	.DB	'B'+80H, (CPUCLOCK/4*5/4*5/466+1)/2	;10 A#/B-
-NOTEND:	.DB	'B',	 (CPUCLOCK/4*5/4*5/494+1)/2	;11 B
+NOTES:	.DB	'C',     (CPUCLOCK/262/64+1)/2		; 0 middle C
+	.DB	'C'+80H, (CPUCLOCK/277/64+1)/2		; 1 C#/D-
+	.DB	'D',     (CPUCLOCK/294/64+1)/2		; 2 D
+	.DB	'D'+80H, (CPUCLOCK/311/64+1)/2		; 3 D#/E-
+	.DB	'E',     (CPUCLOCK/330/64+1)/2		; 4 E
+	.DB	'F',	 (CPUCLOCK/349/64+1)/2		; 5 F
+	.DB	'F'+80H, (CPUCLOCK/370/64+1)/2		; 6 F#/G-
+	.DB	'G',	 (CPUCLOCK/392/64+1)/2		; 7 G
+	.DB	'A'+80H, (CPUCLOCK/415/64+1)/2		; 8 G#/A-
+	.DB	'A',     (CPUCLOCK/440/64+1)/2		; 9 A
+	.DB	'B'+80H, (CPUCLOCK/466/64+1)/2		;10 A#/B-
+NOTEND:	.DB	'B',	 (CPUCLOCK/494/64+1)/2		;11 B
 	.DB	0
 
 	.SBTTL	Shift Octaves and Change Note Duration

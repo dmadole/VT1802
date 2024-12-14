@@ -40,11 +40,11 @@
 #  2-DEC-24	RLA	Add GLYPHWIDTH parameter.
 #--
 
-#    VT1802 assembly options.  CPUCLOCK is in units of 100 Hertz. Note that
-# the only supported PIXELCLOCKs are 1431810MHz or 12000000Hz.  GLYPHWIDTH
-# may be either 8 or 9, but is only supported for the 14.31818MHz PIXELCLOCK.
-# For the 12MHz PIXELCLOCK it is ignored.
-CPUCLOCK=24576
+#    VT1802 assembly options.  Note that the only supported PIXELCLOCKs are
+# 1431810MHz or 12000000Hz.  GLYPHWIDTH may be either 8 or 9, but is only
+# supported for the 14.31818MHz PIXELCLOCK.  For the 12MHz PIXELCLOCK it is
+# ignored.
+CPUCLOCK=2457600
 PIXELCLOCK=14318180
 GLYPHWIDTH=8
 
