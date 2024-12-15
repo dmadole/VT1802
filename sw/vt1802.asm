@@ -161,8 +161,16 @@
 ;	    the middle of the row and call it a strike thru instead!
 ;
 ; 030	-- Add a demo of the line drawing functions to the splash screen.
+;
+; 031	-- [DSM] Rewrite the DLY2MS macro and the NOTES table to work for any
+;	    value of CPUCLOCK.
+;
+; 032	-- Change the 8275 DMA burst timing to allow some space between DMA
+;	    cycles so we don't lock out the 1802 for long periods.
+;
+; 033	-- DLY2MS doesn't work for CPUCLOCK > 4Mhz - fix that!
 ;--
-VEREDT	.EQU	30	; and the edit level
+VEREDT	.EQU	33	; and the edit level
 
 ; TODO list-
 ;   Drawing boxes and lines should be easier - maybe some kind of escape
@@ -335,7 +343,6 @@ CH.SUB	.EQU	$1A	; filler for partial data blocks
 ; Configuration options ...
 HERTZ	  .EQU	60	; VRTC interrupt frequency
 CMDMAX	  .EQU	64	; maximum command line length
-BELLTONE  .EQU	$2A	; CDP1863 divisor for 440Hz
 BELLTIME  .EQU  HERTZ/2	; delay (in VRTC ticks) for ^G bell
 
 ; i8275 video configuration ...
@@ -481,10 +488,19 @@ AUX	.EQU	$F	; used by SCRT to preserve D
 #define LSL	LSNF
 
 ;   This macro delays for 2 ms which is calculated from the clock frequency.
-; Since each loop of the delay takes four instructions, which is eight machine
+; Since each loop of the delay takes two instructions, which is eight machine
 ; cycles, we multiply this times 2000 which is the number of microseconds in
-; 2 ms giving 16000 as the divisor.
-#define DLY2MS	LDI (CPUCLOCK/16000)\ SMI 1\ BNZ $-2\ NOP
+; 2 ms giving 16000 as the divisor.  Unfortunately this doesn't work when the
+; CPUCLOCK is > 4Mhz because the delay constant would exceed 255.  In that
+; case we divide by 32000 and repeat the loop twice.  That also doubles the
+; roundoff error, but this is pretty non-critical.
+	.IF	(CPUCLOCK <= 4000000)
+DLYCONS	.EQU	CPUCLOCK/16000
+#define DLY2MS	LDI DLYCONS\ SMI 1\ BNZ $-2
+	.ELSE
+DLYCONS	.EQU	CPUCLOCK/32000
+#define DLY2MS	LDI DLYCONS\ SMI 1\ BNZ $-2\ LDI DLYCONS\ SMI 1\ BNZ $-2
+	.ENDIF
 
 ; Enable and disable interrupts (P = PC) ...
 #define ION	SEX PC\ RET\ .BYTE (SP<<4) | PC
@@ -2790,7 +2806,7 @@ LINTAB:	.WORD	SCREEN+( 0*MAXCOL)	; line #0
 ; TTIMER is non-zero the end of video frame ISR will decrement the counter
 ; and, when TTIMER makes the 1->0 transition, turns off the speaker.
 
-BELL:	OUTI(TONE,BELLTONE)	; program the CDP1863 for 440Hz
+BELL:	OUTI(TONE,BELLNOTE)	; program the CDP1863 for 440Hz
 	SOUND_ON		; and turn on the speaker
 	RLDI(T1,TTIMER)		; point to TTIMER
 ;  The value we store into TTIMER determines the length of the tone, in frames.
@@ -2963,9 +2979,13 @@ VTINI:	OUTI(CRTCMD, CC.REST)	;  ... reset the 8275
 ;--
 DSPON:	OUTI(CRTCMD, CC.EI)	; enable CRTC interrupts
 	OUTI(CRTCMD, CC.CPRE)	; preload the counters
-;   Turn on the video and select zero character clocks between DMA bursts, and
-; 8 characters/DMA cycles per burst (the maximum).
-	OUTI(CRTCMD, CC.STRT+3)	; ...
+;   Turn on the video and program the 8275 DMA burst timing.  Currently we 
+; program the 8275 to DMA two bytes at a time, and to allow 7 character clocks
+; between DMA bursts.  We want to distribute the DMA overhead around as evenly
+; as possible to avoid excessive 1802 interrupt latency when servicing the
+; serial port, BUT we have to be sure that the 8275 is able to fill its row
+; buffer before the next text row comes up on the display.
+	OUTI(CRTCMD, CC.STRT+$5); 2 bytes/DMA burst, 1 burst every 8 CCLKs
 ; Read the 8275 status register to set the VT1802 VIDEO ON flip flop ...
 	SEX SP\ INP CRTSTS	; read status and enable video
 	NOP\ INP CRTSTS		; then read it again
@@ -3162,7 +3182,7 @@ PNOTE9:	SDF\ RETURN		; return DF=1 and leave P1 unchanged
 	.SBTTL	Note Divisors for The CDP1863
 
 ;++
-;   The table at NOTES: gives the name (as an ASCII character) and the
+;   The table at NOTES gives the name (as an ASCII character) and the
 ; corresponding divider for the CDP1863.  The sharps and flats have 80H added
 ; to the ASCII character - this ensures that they will NEVER match when the
 ; table is searched.  The code handles sharps and flats by finding the letter
@@ -3180,20 +3200,26 @@ PNOTE9:	SDF\ RETURN		; return DF=1 and leave P1 unchanged
 ; formula as 1/64 x 1/2 to make it easy to round the result.
 ;
 ; Note frequencies for octave = 3...
-;
-NOTES:	.DB	'C',     (CPUCLOCK/262/64+1)/2		; 0 middle C
-	.DB	'C'+80H, (CPUCLOCK/277/64+1)/2		; 1 C#/D-
-	.DB	'D',     (CPUCLOCK/294/64+1)/2		; 2 D
-	.DB	'D'+80H, (CPUCLOCK/311/64+1)/2		; 3 D#/E-
-	.DB	'E',     (CPUCLOCK/330/64+1)/2		; 4 E
-	.DB	'F',	 (CPUCLOCK/349/64+1)/2		; 5 F
-	.DB	'F'+80H, (CPUCLOCK/370/64+1)/2		; 6 F#/G-
-	.DB	'G',	 (CPUCLOCK/392/64+1)/2		; 7 G
-	.DB	'A'+80H, (CPUCLOCK/415/64+1)/2		; 8 G#/A-
-	.DB	'A',     (CPUCLOCK/440/64+1)/2		; 9 A
-	.DB	'B'+80H, (CPUCLOCK/466/64+1)/2		;10 A#/B-
-NOTEND:	.DB	'B',	 (CPUCLOCK/494/64+1)/2		;11 B
+;--
+#define NOTE(f)	(CPUCLOCK/f/64+1)/2
+NOTES:	.DB	'C',     NOTE(262)	; 0 middle C
+	.DB	'C'+80H, NOTE(277)	; 1 C#/D-
+	.DB	'D',     NOTE(294)	; 2 D
+	.DB	'D'+80H, NOTE(311)	; 3 D#/E-
+	.DB	'E',     NOTE(330)	; 4 E
+	.DB	'F',	 NOTE(349)	; 5 F
+	.DB	'F'+80H, NOTE(370)	; 6 F#/G-
+	.DB	'G',	 NOTE(392)	; 7 G
+	.DB	'A'+80H, NOTE(415)	; 8 G#/A-
+	.DB	'A',     NOTE(440)	; 9 A
+	.DB	'B'+80H, NOTE(466)	;10 A#/B-
+NOTEND:	.DB	'B',	 NOTE(494)	;11 B
 	.DB	0
+
+;   This constant is used to program the CDP1863 for the Control-G bell tone.
+; It can be pretty much anything you want, but right now we use 440Hz (A above
+; middle C) ...
+BELLNOTE  .EQU	NOTE(440)
 
 	.SBTTL	Shift Octaves and Change Note Duration
 
