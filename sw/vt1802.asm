@@ -600,7 +600,6 @@ ESCSTA:	.BLOCK	1	; current ESCape state machine state
 CURCHR:	.BLOCK	1	; character we're trying to output
 SAVCHR:	.BLOCK	1	; save one character for escape sequences
 ; Other variables ...
-FRAME:	.BLOCK	1	; incremented by the end of frame ISR
 TTIMER:	.BLOCK	1	; timer for tones and ^G bell beeper
 SERBRK:	.BLOCK	1	; serial port break flag
 UPTIME:	.BLOCK	4	; total time (in VRTC ticks) since power on
@@ -3868,17 +3867,10 @@ EOFISR:	PUSHR(T1)		; save a temporary register
 	LDA T1\ PHI DMAPTR	; reset the DMA pointer
 	LDN T1\ PLO DMAPTR	;  ... to the top of the screen
 
-;   Increment the frame counter - this is used to keep track of time ...
-; Note that this byte at FRAME: just counts up to 0xFF and then rolls over to
-; zero.  We don't do anything more than increment it!
-	RLDI(T1,FRAME)\ LDN T1	; get the current frame counter
-	ADI 1\ STR T1		; and increment it
-
-;   If the bell timer (TTIMER, which is conveniently located at FRAME+1!) is
-; non-zero, then the beeper is turned on and we should decrement TTIMER.  When
-; TTIMER reaches zero, we turn off the speaker.  This is used to implement the
-; ^G bell function of the VT52...
-	INC T1\ LDN T1		; get the value of TTIMER
+;   If the bell timer is non-zero, then the beeper is turned on and we should
+; decrement TTIMER.  When TTIMER reaches zero, we turn off the speaker.  This
+; is used to implement the ^G bell function of the VT52...
+	RLDI(T1,TTIMER)\ LDN T1	; get the current bell timer
 	LBZ	EOFIS1		; just return now if it's zero
 	SMI 1\ STR T1		; otherwise decrement it
 	LBNZ	EOFIS1		; just keep going until it reaches zero
