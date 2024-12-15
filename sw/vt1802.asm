@@ -162,16 +162,15 @@
 ;
 ; 030	-- Add a demo of the line drawing functions to the splash screen.
 ;
-; 031	-- [DSM] Rewrite the DLY2MS macro and the NOTES table to work for any
-;	    value of CPUCLOCK.
+; 031	-- Remove CPU clock restrictions, calculate the needed constants.
 ;
-; 032	-- Change the 8275 DMA burst timing to allow some space between DMA
-;	    cycles so we don't lock out the 1802 for long periods.
+; 032	-- Move screen buffer to top of memory to simplify test for wrap.
 ;
-; 033	-- DLY2MS doesn't work for CPUCLOCK > 4Mhz - fix that!
+; 033	-- Remove FRAME counter not being used. UPDATE is the same thing.
 ;
-; 034	-- HEXNW2 doesn't return the second parameter in P4 as it should!
-;	    That breaks XLOAD, XSAVE and OUTPUT...
+; 034	-- Check for end of screen and reset the DMAPTR if needed in the
+;	     middle of the serial ISR between receive and transmit.
+;
 ;--
 VEREDT	.EQU	34	; and the edit level
 
@@ -201,6 +200,60 @@ VEREDT	.EQU	34	; and the edit level
 ;    with built-in 1805 instructions, especially RLDI, DBNZ, SCAL, SRET, etc.
 ;    SCAL/SRET may be problematic with BASIC3...
 
+
+	.SBTTL	i8275 Video Configuration
+
+MAXCOL	   .EQU	80	; characters displayed per row
+CURSORTYPE .EQU  0	; 0->blinking block, 1->blinking underline
+			; 2->non-blinking block, 3->non-blinking underline
+
+;   These are the video timing parameters for a 14.31818MHz dot clock, 8 pixels
+; per glyph, and an 80x26 display.  This setup gives longer retrace times and
+; works better with older, analog, CVBS monitors.  For this timing, set
+; MAXROW=26 and HRTCCNT=32.
+;
+;   The "alternate" 14.31818MHz timing uses 9 pixels per glyph and gives an
+; 80x25 display.  This gives a better looking display (more space between the)
+; characters) but may not be enough horizontal retrace time for some monitors.
+	.IF PIXELCLOCK == 14318180
+	.IF GLYPHWIDTH == 9
+MAXROW    .EQU	25	; rows displayed per screen
+HRTCCNT   .EQU	22	; characters per HRTC
+	.ENDIF
+	.IF GLYPHWIDTH == 8
+MAXROW    .EQU	26	; rows displayed per screen
+HRTCCNT   .EQU	32	; characters per HRTC
+	.ENDIF
+; These parameters are independent of the pixels per glyph ...
+VRTCCNT   .EQU	4	; rows per VRTC
+SCANLINES .EQU	9	; scan lines per font glyph
+UNDERLINE .EQU	5	; scan line for underlining 
+	.ENDIF
+
+;   These are the timing parameters for a 12.000MHz dot clock, 8 pixels per
+; glyph, and an 80x24 display.  This gives shorter retrace times, but larger
+; characters and fills more of the the screen for a real CGA type monitor.
+;
+;   And like before, there is an "alternate" 12MHz timing that uses 7 pixels
+; per glyph for an 80x25 display. This gives very squished together characters,
+; but it does give more overscan and longer retrace times.
+	.IF PIXELCLOCK == 12000000
+	.IF GLYPHWIDTH == 8
+MAXROW    .EQU	24	; rows displayed per screen
+VRTCCNT   .EQU	2	; rows per VRTC
+HRTCCNT   .EQU	16	; characters per HRTC
+SCANLINES .EQU	10	; scan lines per font glyph
+UNDERLINE .EQU	5	; scan line for underlining 
+	.ENDIF
+	.IF GLYPHWIDTH == 7
+MAXROW    .EQU	25	; rows displayed per screen
+VRTCCNT   .EQU	4	; rows per VRTC
+HRTCCNT   .EQU	28	; characters per HRTC
+SCANLINES .EQU	9	; scan lines per font glyph
+UNDERLINE .EQU	5	; scan line for underlining 
+	.ENDIF
+	.ENDIF
+
 	.SBTTL	VT1802 Hardware Definitions
 
 ; Memory layout ...
@@ -213,8 +266,8 @@ HLPTXT	 .EQU $7800		; help text stored here in EPROM
 RAMBASE	 .EQU $8000	   	; RAM starts at $8000
 RAMSIZE  .EQU $8000	   	;  ... 32K of RAM
 RAMEND   .EQU RAMBASE+RAMSIZE-1	;  ... address of the last byte in RAM
-SCRNSIZE .EQU 2100		; size of display frame buffer (worst case!)
-DPBASE   .EQU RAMEND-SCRNSIZE-512+1; our data occupies the last part of RAM
+SCRNSIZE .EQU MAXROW*MAXCOL	; size of display frame buffer (exactly)
+DPBASE   .EQU RAMEND-(SCRNSIZE|$FF)-512; our data occupies the last part of RAM
 
 ; I/O ports implemented on the VT1802 ...
 FLAGS	.EQU	1	; (w/o) flags register
@@ -347,58 +400,6 @@ CH.SUB	.EQU	$1A	; filler for partial data blocks
 HERTZ	  .EQU	60	; VRTC interrupt frequency
 CMDMAX	  .EQU	64	; maximum command line length
 BELLTIME  .EQU  HERTZ/2	; delay (in VRTC ticks) for ^G bell
-
-; i8275 video configuration ...
-MAXCOL	   .EQU	80	; characters displayed per row
-CURSORTYPE .EQU  0	; 0->blinking block, 1->blinking underline
-			; 2->non-blinking block, 3->non-blinking underline
-
-;   These are the video timing parameters for a 14.31818MHz dot clock, 8 pixels
-; per glyph, and an 80x26 display.  This setup gives longer retrace times and
-; works better with older, analog, CVBS monitors.  For this timing, set
-; MAXROW=26 and HRTCCNT=32.
-;
-;   The "alternate" 14.31818MHz timing uses 9 pixels per glyph and gives an
-; 80x25 display.  This gives a better looking display (more space between the)
-; characters) but may not be enough horizontal retrace time for some monitors.
-	.IF PIXELCLOCK == 14318180
-	.IF GLYPHWIDTH == 9
-MAXROW    .EQU	25	; rows displayed per screen
-HRTCCNT   .EQU	22	; characters per HRTC
-	.ENDIF
-	.IF GLYPHWIDTH == 8
-MAXROW    .EQU	26	; rows displayed per screen
-HRTCCNT   .EQU	32	; characters per HRTC
-	.ENDIF
-; These parameters are independent of the pixels per glyph ...
-VRTCCNT   .EQU	4	; rows per VRTC
-SCANLINES .EQU	9	; scan lines per font glyph
-UNDERLINE .EQU	5	; scan line for underlining 
-	.ENDIF
-
-;   These are the timing parameters for a 12.000MHz dot clock, 8 pixels per
-; glyph, and an 80x24 display.  This gives shorter retrace times, but larger
-; characters and fills more of the the screen for a real CGA type monitor.
-;
-;   And like before, there is an "alternate" 12MHz timing that uses 7 pixels
-; per glyph for an 80x25 display. This gives very squished together characters,
-; but it does give more overscan and longer retrace times.
-	.IF PIXELCLOCK == 12000000
-	.IF GLYPHWIDTH == 8
-MAXROW    .EQU	24	; rows displayed per screen
-VRTCCNT   .EQU	2	; rows per VRTC
-HRTCCNT   .EQU	16	; characters per HRTC
-SCANLINES .EQU	10	; scan lines per font glyph
-UNDERLINE .EQU	5	; scan line for underlining 
-	.ENDIF
-	.IF GLYPHWIDTH == 7
-MAXROW    .EQU	25	; rows displayed per screen
-VRTCCNT   .EQU	4	; rows per VRTC
-HRTCCNT   .EQU	28	; characters per HRTC
-SCANLINES .EQU	9	; scan lines per font glyph
-UNDERLINE .EQU	5	; scan line for underlining 
-	.ENDIF
-	.ENDIF
 
 ; Buffer size definitions ...
 ;   Be sure to read the comments in the circular buffer routines and on the
@@ -599,22 +600,6 @@ DLYCONS	.EQU	CPUCLOCK/32000
 	.ENDIF
 	.ORG	DPBASE
 
-;   This is the ASCII frame buffer and contains all the characters on the
-; screen at the moment.  The row refresh ISR loads data directly into the 8275
-; from here.  Note that there is a table at LINTAB: which must contain at least
-; MAXROW entries.  If you change MAXROW, it might be a good idea to check that
-; table too!
-;
-;   Note that it's important that the actual frame buffer be a little bit larger
-; (at least one byte) than MAXROW*MAXCOL.  That's so we have a place to store
-; the i8275 "end of screen, stop DMA" code.
-SCREEN:	.BLOCK	SCRNSIZE		; the whole screen lives here!
-SCRMAX:					; actual end of the frame buffer
-SCREND	.EQU	SCREEN+(MAXROW*MAXCOL)	; part of frame buffer actively used
-	.IF	(MAXROW*MAXCOL) >= SCRNSIZE
-	.ECHO	"**** SCRNSIZE TOO SMALL! *****\n"
-	.ENDIF
-
 ; Other random VT52 emulator context variables...
 ;   WARNING!! DO NOT CHANGE THE ORDER OF TOPLIN, CURSX and CURSY!  The code
 ; DEPENDS on these three bytes being in this particular order!!!
@@ -628,7 +613,6 @@ ESCSTA:	.BLOCK	1	; current ESCape state machine state
 CURCHR:	.BLOCK	1	; character we're trying to output
 SAVCHR:	.BLOCK	1	; save one character for escape sequences
 ; Other variables ...
-FRAME:	.BLOCK	1	; incremented by the end of frame ISR
 TTIMER:	.BLOCK	1	; timer for tones and ^G bell beeper
 SERBRK:	.BLOCK	1	; serial port break flag
 UPTIME:	.BLOCK	4	; total time (in VRTC ticks) since power on
@@ -788,9 +772,23 @@ XHDR3:	.BLOCK	1		; received "inverse" block number
 XBUFFER:.BLOCK	XDATSZ		; 128 bytes of received data
 XHDR4:	.BLOCK	1		; received checksum
 
-	.IF ($ > RAMEND)
+	.IF ($ > (RAMEND-SCRNSIZE))
 	.ECHO	"**** TOO MANY RAM BYTES - ADJUST DPBASE *****\n"
 	.ENDIF
+
+
+;   This is the ASCII frame buffer and contains all the characters on the
+; screen at the moment.  The row refresh ISR loads data directly into the 8275
+; from here.  Note that there is a table at LINTAB: which must contain at least
+; MAXROW entries.  If you change MAXROW, it might be a good idea to check that
+; table too!
+;
+;   The frame buffer is sized to the exact number of characters on the screen
+; and placed against the top of memory. This way the end of the screen can be
+; tested for because the MSB of the pointer will be zero. This will especially
+; help to streamline the end-of-row interrupt reset for wrapping the display.
+	.ORG	RAMEND-SCRNSIZE+1
+SCREEN:	.BLOCK	SCRNSIZE		; the whole screen lives here!
 
 	.SBTTL	Startup, Copyright and Vectors
 
@@ -2541,17 +2539,8 @@ FILL:	PUSHD			; save the fill character for a while
 	RLDI(T2,SCREEN)		; then point to the start of the screen space
 ; Fill the active area of the screen with whatever character was given ...
 FILL1:	GLO T1\ STR T2\ INC T2	; fill this location
-	GHI T2\ XRI HIGH(SCREND); have we reached the end of the screen?
+	GHI T2			; have we reached the end of the screen?
 	LBNZ	FILL1		; no - keep going
-	GLO T2\ XRI LOW(SCREND)	; ???
-	LBNZ	FILL1		; ...
-; And fill the rest of the frame buffer with i8275 end of screen codes ...
-FILL2:	LDI	CC.EOSS		; end of screen code
-	STR T2\ INC T2		; ...
-	GHI T2\ XRI HIGH(SCRMAX); end of frame buffer ?
-	LBNZ	FILL2		; no - keep going
-	GLO T2\ XRI LOW(SCRMAX)	; ???
-	LBNZ	FILL2		; ...
 	RETURN			; finally - all done!
 
 	.SBTTL	Screen Erase Functions
@@ -2566,10 +2555,8 @@ EEOS:	RLDI(T1,TOPLIN)\ LDN T1	; find the line that's on the top of the screen
 	CALL(WHERE)		; and find out where the cursor is
 EEOS1:	LDI ' '\ STR P1		; clear this character
 	INC	P1		; increment the pointer
-	GLO P1\ XRI LOW(SCREND)	; have we reached the end of the screen space ?
+	GHI P1 			; have we reached the end of the screen space ?
 	LBNZ	EEOS2		; jump if we haven't
-	GHI P1\	XRI HIGH(SCREND); well, ???
-	LBNZ	EEOS2		; again jump if we haven't
 	RLDI(P1,SCREEN)		; yes -- wrap around to the start of the screen
 EEOS2:	GLO P1\ STR SP		; get the low byte of the address (again!)
 	GLO T2\ XOR		; have we reached the top of the screen yet ?
@@ -3829,9 +3816,9 @@ RSTIO1:	CALL(SIN)		; SW6=0 -> select serial port for input
 ;
 ;   Note that, unlike SAV, the RET instruction DOES increment X!
 ;--
-ISRRET:	SEX SP\ INC SP		; point SP back to the saved D register
-ISRRE1:	LDXA\ SHL		; restore DF
-	LDXA			; restore D
+ISRRET:	INC SP			; point SP back to the saved D register
+	LDA SP\ SHL		; restore DF
+	LDA SP			; restore D
 	RET			; and restore (X,P)
 
 ;++
@@ -3871,11 +3858,7 @@ ISR:	DEC SP\ SAV		; push T (the saved X,P)
 ; the end of each row...
 ;--
 ROWEND:	GHI	DMAPTR		; get the high byte of the DMA pointer
-	SMI	HIGH(SCREND)	; have we reached the end of the screen buffer?
-	BL	ISR1		; continue with interrupt processing if not
-	GLO	DMAPTR		; do the same for the low byte
-	SMI	LOW(SCREND)	; ...
-	BL	ISR1		; ...
+	BNZ	ISR1		; ...
 	RLDI(DMAPTR,SCREEN)	; reset the DMA pointer back to the start
 
 ;   Now continue with interrupt processing by attempting to indentify the
@@ -3909,17 +3892,10 @@ EOFISR:	PUSHR(T1)		; save a temporary register
 	LDA T1\ PHI DMAPTR	; reset the DMA pointer
 	LDN T1\ PLO DMAPTR	;  ... to the top of the screen
 
-;   Increment the frame counter - this is used to keep track of time ...
-; Note that this byte at FRAME: just counts up to 0xFF and then rolls over to
-; zero.  We don't do anything more than increment it!
-	RLDI(T1,FRAME)\ LDN T1	; get the current frame counter
-	ADI 1\ STR T1		; and increment it
-
-;   If the bell timer (TTIMER, which is conveniently located at FRAME+1!) is
-; non-zero, then the beeper is turned on and we should decrement TTIMER.  When
-; TTIMER reaches zero, we turn off the speaker.  This is used to implement the
-; ^G bell function of the VT52...
-	INC T1\ LDN T1		; get the value of TTIMER
+;   If the bell timer is non-zero, then the beeper is turned on and we should
+; decrement TTIMER.  When TTIMER reaches zero, we turn off the speaker.  This
+; is used to implement the ^G bell function of the VT52...
+	RLDI(T1,TTIMER)\ LDN T1	; get the current bell timer
 	LBZ	EOFIS1		; just return now if it's zero
 	SMI 1\ STR T1		; otherwise decrement it
 	LBNZ	EOFIS1		; just keep going until it reaches zero
@@ -4014,12 +3990,19 @@ SLUI00:	INC T1\ LDN T1		; read the TXONOF flag
 ; will never go away!
 SLUIS4:	SEX SP\ INP SLUBUF	; read the character and discard it
 
+;   Before checking the transmitter, check if the DMA pointer has advanced
+; past the end of the screen while we were working, since the last check,
+; and reset the DMA pointer if needed.
+SLUIS1:	GHI	DMAPTR		; get the high byte of the DMA pointer
+	BNZ	SLUIS5		; ...
+	RLDI(DMAPTR,SCREEN)	; reset the DMA pointer back to the start
+
 ;   And now see if the UART transmitter needs service.  If the holding register
 ; is empty and there are more characters in the TXBUF, then transmit the next
 ; one.  If the buffer is empty, then there's no need to do anything - just
 ; reading the status will clear the CDP1854 interrupt request, and we can let
 ; the transmitter go idle.
-SLUIS1:	INP SLUSTS\ ANI SL.THRE	; is the THRE bit set?
+SLUIS5:	INP SLUSTS\ ANI SL.THRE	; is the THRE bit set?
 	LBZ	SLUIS3		; no - go check something else
 	RLDI(T1,FLOCTL)\ LDN T1	; see if flow control is enabled
 	XRI $FF\ LBNZ SLUI10	; no - go check the transmit buffer
@@ -4625,6 +4608,7 @@ KEYNUM:	.BYTE	"0"		; 0xA0 KEYPAD 0
 ;
 ;   Echo on the console is automatically disabled while XMODEM is active.
 ;--
+	.ORG	$+3		; needed for br alignment in DLY2MS
 XOPENW:	PUSHR(P1)		; save working register
 	RLDI(P1,XBLOCK)		; current block number
 	LDI 1\ STR P1		; set starting block to 1
