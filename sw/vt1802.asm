@@ -2674,19 +2674,21 @@ LDCURS:	RLDI(T1,HIDCURS)\ LDN T1; is the cursor hidden ?
 	LBNZ	LDCUR1		; yes - do that
 
 ; Here to show the real cursor ...
-	IOFF			; interrupts off for a moment
-	RLDI(T1,CURSX)		; point to the cursor location
-	OUTI(CRTCMD,CC.LCUR)	; give the load cursor command
+	LDI LOW(CURSX)\ PLO T1	; point to the cursor location
+	SEX PC\ DIS\ .BYTE $33	; disable interrupts
+	OUT CRTCMD\ .BYTE CC.LCUR ; give the load cursor command
 	SEX	T1		; and output X ...
 	OUT CRTPRM\ OUT CRTPRM	; ... and then Y ...
-	ION\ RETURN		; all is safe again
+	SEX PC\ RET\ .BYTE $33	; enable interrupts again
+	RETURN			; all is safe again
 
 ; Here to hide the cursor ...
-LDCUR1:	IOFF			; interrupts off
-	OUTI(CRTCMD,CC.LCUR)	; issue the load cursor command
-	OUTI(CRTPRM,MAXCOL+1)	; and give a position that's off screen
-	OUTI(CRTPRM,MAXROW+1)	; ...
-	ION\ RETURN		; all done
+LDCUR1:	SEX PC\ DIS\ .BYTE $33	; disable interrupts
+	OUT CRTCMD\ .BYTE CC.LCUR; give the load cursor command
+	OUT CRTPRM\ .BYTE MAXCOL ; and give a position that's off screen
+	OUT CRTPRM\ .BYTE MAXROW ; ...
+	RET\ .BYTE $33		; enable interrupts again
+	RETURN			; all is safe again
 
 
 ;++
@@ -4608,7 +4610,6 @@ KEYNUM:	.BYTE	"0"		; 0xA0 KEYPAD 0
 ;
 ;   Echo on the console is automatically disabled while XMODEM is active.
 ;--
-	.ORG	$+3		; needed for br alignment in DLY2MS
 XOPENW:	PUSHR(P1)		; save working register
 	RLDI(P1,XBLOCK)		; current block number
 	LDI 1\ STR P1		; set starting block to 1
