@@ -2975,7 +2975,7 @@ DSPON:	OUTI(CRTCMD, CC.EI)	; enable CRTC interrupts
 ; as possible to avoid excessive 1802 interrupt latency when servicing the
 ; serial port, BUT we have to be sure that the 8275 is able to fill its row
 ; buffer before the next text row comes up on the display.
-	OUTI(CRTCMD, CC.STRT+$5); 2 bytes/DMA burst, 1 burst every 8 CCLKs
+	OUTI(CRTCMD, CC.STRT)	; 8 bytes/DMA burst, no delay detween
 ; Read the 8275 status register to set the VT1802 VIDEO ON flip flop ...
 	SEX SP\ INP CRTSTS	; read status and enable video
 	NOP\ INP CRTSTS		; then read it again
