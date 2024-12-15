@@ -169,8 +169,11 @@
 ;	    cycles so we don't lock out the 1802 for long periods.
 ;
 ; 033	-- DLY2MS doesn't work for CPUCLOCK > 4Mhz - fix that!
+;
+; 034	-- HEXNW2 doesn't return the second parameter in P4 as it should!
+;	    That breaks XLOAD, XSAVE and OUTPUT...
 ;--
-VEREDT	.EQU	33	; and the edit level
+VEREDT	.EQU	34	; and the edit level
 
 ; TODO list-
 ;   Drawing boxes and lines should be easier - maybe some kind of escape
@@ -1270,17 +1273,17 @@ INPUT:	CALL(HEXNW)		; read the port number
 ; Like INPUT, this command always accesses ports in I/O group 1.  If you want
 ; to access the VIS chip set, then use the VIS command instead.
 ;--
-OUTPUT:	CALL(HEXNW2)		; read the port number and the byte
+OUTPUT:	CALL(HEXNW2)		; P3 == port, P4 == data byte
 	CALL(CHKEOL)		; there should be no more
-	RLDI(P4,IOT)		; point P4 at the IOT buffer
+	RLDI(P2,IOT)		; point P2 at the IOT buffer
 	GLO P3\ ANI 7		; get the port address
 	LBZ	CMDERR		; error if port 0 selected
-	ORI $60\ STR P4\ INC P4	; turn it into an output instruction
-	GLO P2\ STR P4\ INC P4	; store the data byte inline
-	LDI $D0+PC\ STR P4	; store a "SEP PC" instruction
-	DEC P4\ DEC P4		; back to IOT:
-	SEX	P4		; set X=P for IOT
-	SEP	P4		; now call the output routine
+	ORI $60\ STR P2\ INC P2	; turn it into an output instruction
+	GLO P4\ STR P2\ INC P2	; store the data byte inline
+	LDI $D0+PC\ STR P2	; store a "SEP PC" instruction
+	DEC P2\ DEC P2		; back to IOT:
+	SEX	P2		; set X=P for IOT
+	SEP	P2		; now call the output routine
 	RETURN			; and we're done
 
 	.SBTTL	XMODEM Load and Save
@@ -3285,10 +3288,12 @@ NOTED8:	LDA T1\ SHR		; get current tempo /2
 ; Scan two hexadecimal parameters and return them in registers P4 and P3...
 ;--
 HEXNW2:	CALL(HEXNW)		; scan the first parameter
-	RCOPY(P3,P2)		; and save it
+	RCOPY(P3,P2)		; return first parameter in P3
 	CALL(ISEOL)		; there had better be more there
 	LBDF	CMDERR		; error if not
-				; fall into HEXNW to get another
+	CALL(HEXNW)		; scan the second parameter
+	RCOPY(P4,P2)		; return second parameter in P4
+	RETURN			; and we're done
 
 ;++
 ;   Scan a single hexadecimal parameter and return its value in register P2.
