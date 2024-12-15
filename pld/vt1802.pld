@@ -42,11 +42,14 @@
 /* 16-SEP-24	RLA	Switch ports 4 & 5 for VIS1802 compatibility	*/
 /* 17-SEP-24	RLA	We need to decode N for RD_CRTC too, otherwise	*/
 /*			  VIDEO ON gets set when we read the switches!	*/
+/* 14-DEC-24	DSM	Stretch the 8275 DMA write from the trailing	*/
+/*			  edge of TPA to the leading edge of TPB.  This	*/
+/*			  gives it more time with a fast 1805/6 clock.	*/
 /*--									*/
 NAME            VT1802;
 PARTNO          VT1802;
-REVISION        D;
-DATE            09/17/24;
+REVISION        E;
+DATE            12/14/24;
 DESIGNER        Robert Armstrong;
 COMPANY         Spare Time Gizmos;
 ASSEMBLY        VT1802;
@@ -121,7 +124,8 @@ IOWR = TPB & MRD;
 /* just control the 8275 with the RD and WR signals.  DACK is simply	*/
 /* DMAACK, derived from the CPU state codes above.			*/
 RD_CRTC =  IORD & (N:6 # N:7);
-WR_CRTC = (IOWR & (N:6 # N:7)) # (TPB & MRD & DMAACK);
+WR_CRTC = (IOWR & (N:6 # N:7)) # (IO_STRETCH & !TPA & MRD & DMAACK);
+
 
 
 /*   Now decode the I/O selects for the rest of the peripherals.  Note 	*/
