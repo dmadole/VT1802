@@ -166,8 +166,13 @@
 ;
 ; 032	-- Move screen buffer to top of memory to simplify test for wrap.
 ;
+; 033	-- Remove FRAME counter not being used. UPDATE is the same thing.
+;
+; 034	-- Check for end of screen and reset the DMAPTR if needed in the
+;	     middle of the serial ISR between receive and transmit.
+;
 ;--
-VEREDT	.EQU	32	; and the edit level
+VEREDT	.EQU	34	; and the edit level
 
 ; TODO list-
 ;   Drawing boxes and lines should be easier - maybe some kind of escape
@@ -3965,12 +3970,19 @@ SLUI00:	INC T1\ LDN T1		; read the TXONOF flag
 ; will never go away!
 SLUIS4:	SEX SP\ INP SLUBUF	; read the character and discard it
 
+;   Before checking the transmitter, check if the DMA pointer has advanced
+; past the end of the screen while we were working, since the last check,
+; and reset the DMA pointer if needed.
+SLUIS1:	GHI	DMAPTR		; get the high byte of the DMA pointer
+	BNZ	SLUIS5		; ...
+	RLDI(DMAPTR,SCREEN)	; reset the DMA pointer back to the start
+
 ;   And now see if the UART transmitter needs service.  If the holding register
 ; is empty and there are more characters in the TXBUF, then transmit the next
 ; one.  If the buffer is empty, then there's no need to do anything - just
 ; reading the status will clear the CDP1854 interrupt request, and we can let
 ; the transmitter go idle.
-SLUIS1:	INP SLUSTS\ ANI SL.THRE	; is the THRE bit set?
+SLUIS5:	INP SLUSTS\ ANI SL.THRE	; is the THRE bit set?
 	LBZ	SLUIS3		; no - go check something else
 	RLDI(T1,FLOCTL)\ LDN T1	; see if flow control is enabled
 	XRI $FF\ LBNZ SLUI10	; no - go check the transmit buffer
