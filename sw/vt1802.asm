@@ -2487,14 +2487,11 @@ RLF:	RLDI(T1,CURSY)\ LDN T1	; is it on the top of the screen ?
 ; Note that this routine does not change the cursor location (normally it
 ; won't need to be changed).
 ;--
-SCRUP:	IOFF			; no video interrupts while we mess with TOPLIN
-	RLDI(T1,TOPLIN)		; get the current top line on the screen
-	LDN T1\ PLO P1		; and remember that for later
-	ADI 1\ STR T1		; then move the top line down to the next line
-	SMI	MAXROW		; do we need to wrap the line counter around ?
-	LBNF	SCRUP1		; jump if not
-	LDI 0\ STR T1		; yes -- reset back to the first line
-SCRUP1:	ION			; interrupts are safe again
+SCRUP:	RLDI(T1,TOPLIN)		; pointer to current top line on the screen
+	LDN T1\ PLO P1		; get line and remember that for later
+	SMI	MAXROW-1	; are we already at the last row on screen?
+	LSZ\ ADI MAXROW		; if yes, set to zero, if not add one to row
+	STR	T1		; save new row number
 	GLO	P1		; then get back the number of the bottom line
 	CALL(LINADD)		; calculate its address
 	LBR	CLRLIN		; and then go clear it
@@ -2506,15 +2503,14 @@ SCRUP1:	ION			; interrupts are safe again
 ; Note that this routine does not change the cursor location (normally it
 ; won't  need  to be changed).
 ;--
-SCRDWN:	IOFF			; no interrupts until TOPLIN is safe
-	RLDI(T1,TOPLIN)		; get the line number of the top of the screen
-	LDN T1\ SMI 1		; and move it down one line
-	LBDF	SCRDW1		; jump if we don't need to wrap around
-	LDI	MAXROW-1	; wrap around to the other end of the screen
-SCRDW1:	ION			; TOPLIN is safe again
-	STR	T1		; update the top line on the screen
+SCRDWN:	RLDI(T1,TOPLIN)		; pointer to current top line of the screen
+	LDN T1\ PLO P1		; get line and remember for later
+	LSNZ\ LDI MAXROW	; kepp if not zero, else get line after last
+	SMI 1\ STR T1		; move to previous line and save
+	GLO	P1		; then get back the number of the top line
 	CALL(LINADD)		; calculate the address of this line
 	LBR	CLRLIN		; and then go clear it
+
 
 	.SBTTL	Clear Screen Function
 
@@ -2568,17 +2564,21 @@ EEOS2:	GLO P1\ STR SP		; get the low byte of the address (again!)
 
 
 ;++
-;   This routine will clear 80 characters in the display RAM.  This is normally
-; used to erase lines for scrolling purposes. It expects the address of the
-; first byte to be passed in P1; this byte and the next 79 are set to a space
-; character.
+;   This routine will clear MAXCOL characters in the display RAM.  This is
+; normally used to erase lines for scrolling purposes. It expects the address
+; of the first byte to be passed in P1 this byte and the next MAXCOL-1 are set
+; to a space character. The loop is unrolled by a factor of four for speed;
+; this means that MAXCOL needs to be a multiple of four, which is not unusual.
 ;--
-CLRLIN:	LDI MAXCOL\ PLO T1	; store the number of characters per line
-CLRLI1: LDI ' '\ STR P1		; set this byte to a space
-	INC P1\ DEC T1\ GLO T1	; and advance to the next one
-	LBNZ	CLRLI1		; ...
+CLRLIN:	LDI MAXCOL/4\ PLO T1	; interation count for unrolled loop
+	GLO P1\ ADI MAXCOL-1	; address of last byte on line
+	PLO P1\ GHI P1\ ADCI 0	; add carry to msb if neededsave it
+	PHI P1\ SEX P1		; save and set x=p1
+CLRLI1:	LDI ' '			; get a space
+	STXD\ STXD\ STXD\ STXD	; and set next four bytes to it
+	DEC T1\ GLO T1		; check loop count
+	LBNZ    CLRLI1		; repeat until done
 	RETURN			; and that's all for now
-
 
 ;++
 ;   This routine will erase all characters from the current cursor location to
