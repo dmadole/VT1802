@@ -171,12 +171,15 @@ E
 ; 034	-- Check for end of screen and reset the DMAPTR if needed in the
 ;	     middle of the serial ISR between receive and transmit.
 ;
-; 035	-- Remove DMA burst space to stop flicket. Allow interrupts while
+; 035	-- Remove DMA burst space to stop flicker. Allow interrupts while
 ;	     scrolling and speed up scrolling. Reduce time interrupts
 ;	     disabled in LDCURS. Streamline serial receive and buffer
 ;	     handling, remove buffer count variable.
+;
+; 036	-- Fix SCRDWN to erase the correct line. Fix DMA burst setting.
+;
 ;--
-VEREDT	.EQU	35	; and the edit level
+VEREDT	.EQU	36	; and the edit level
 
 ; TODO list-
 ;   Drawing boxes and lines should be easier - maybe some kind of escape
@@ -2507,11 +2510,9 @@ SCRUP:	RLDI(T1,TOPLIN)		; pointer to current top line on the screen
 ; Note that this routine does not change the cursor location (normally it
 ; won't  need  to be changed).
 ;--
-SCRDWN:	RLDI(T1,TOPLIN)		; pointer to current top line of the screen
-	LDN T1\ PLO P1		; get line and remember for later
-	LSNZ\ LDI MAXROW	; kepp if not zero, else get line after last
+SCRDWN:	RLDI(T1,TOPLIN)\ LDN T1	; get the top line of the screen
+	LSNZ\ LDI MAXROW	; keep if not zero, else get line after last
 	SMI 1\ STR T1		; move to previous line and save
-	GLO	P1		; then get back the number of the top line
 	CALL(LINADD)		; calculate the address of this line
 	LBR	CLRLIN		; and then go clear it
 
@@ -2981,7 +2982,7 @@ DSPON:	OUTI(CRTCMD, CC.EI)	; enable CRTC interrupts
 ; as possible to avoid excessive 1802 interrupt latency when servicing the
 ; serial port, BUT we have to be sure that the 8275 is able to fill its row
 ; buffer before the next text row comes up on the display.
-	OUTI(CRTCMD, CC.STRT)	; 8 bytes/DMA burst, no delay detween
+	OUTI(CRTCMD, CC.STRT+3)	; 8 bytes/DMA burst, no delay detween
 ; Read the 8275 status register to set the VT1802 VIDEO ON flip flop ...
 	SEX SP\ INP CRTSTS	; read status and enable video
 	NOP\ INP CRTSTS		; then read it again
