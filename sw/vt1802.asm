@@ -2670,29 +2670,22 @@ DOWN:	RLDI(T1,CURSY)		; get the row number where the cursor is
 ; to turn the cursor on or off, but we can fake it out by loading the cursor
 ; registers with a position that's off the screen.  In that case it'll never
 ; be displayed.
-;
-;   Note that the end of frame ISR reads the CRTC status register and we have
-; to be careful that doesn't happen in between the LOAD CURSOR command and the
-; two parameter bytes for the same!
 ;--
 LDCURS:	RLDI(T1,HIDCURS)\ LDN T1; is the cursor hidden ?
 	LBNZ	LDCUR1		; yes - do that
 
 ; Here to show the real cursor ...
 	LDI LOW(CURSX)\ PLO T1	; point to the cursor location
-	SEX PC\ DIS\ .BYTE $33	; disable interrupts
-	OUT CRTCMD\ .BYTE CC.LCUR ; give the load cursor command
-	SEX	T1		; and output X ...
-	OUT CRTPRM\ OUT CRTPRM	; ... and then Y ...
-	SEX PC\ RET\ .BYTE $33	; enable interrupts again
-	RETURN			; all is safe again
+	SEX PC\ OUT CRTCMD	; give the load cursor command
+	.BYTE CC.LCUR		; ...
+	SEX T1\ OUT CRTPRM	; and output X ...
+	OUT CRTPRM\ RETURN	; ... and then Y ... and return
 
 ; Here to hide the cursor ...
-LDCUR1:	SEX PC\ DIS\ .BYTE $33	; disable interrupts
-	OUT CRTCMD\ .BYTE CC.LCUR; give the load cursor command
-	OUT CRTPRM\ .BYTE MAXCOL ; and give a position that's off screen
-	OUT CRTPRM\ .BYTE MAXROW ; ...
-	RET\ .BYTE $33		; enable interrupts again
+LDCUR1:	SEX PC\ OUT CRTCMD	; give the load cursor command
+	.BYTE CC.LCUR		; ...
+	OUT CRTPRM\ .BYTE 80 	; off-screen regardless of MAXCOL/MAXROW
+	OUT CRTPRM\ .BYTE 64	; ...
 	RETURN			; all is safe again
 
 
