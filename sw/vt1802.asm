@@ -2507,11 +2507,9 @@ SCRUP:	RLDI(T1,TOPLIN)		; pointer to current top line on the screen
 ; Note that this routine does not change the cursor location (normally it
 ; won't  need  to be changed).
 ;--
-SCRDWN:	RLDI(T1,TOPLIN)		; pointer to current top line of the screen
-	LDN T1\ PLO P1		; get line and remember for later
-	LSNZ\ LDI MAXROW	; kepp if not zero, else get line after last
+SCRDWN:	RLDI(T1,TOPLIN)\ LDN T1	; get the top line of the screen
+	LSNZ\ LDI MAXROW	; keep if not zero, else get line after last
 	SMI 1\ STR T1		; move to previous line and save
-	GLO	P1		; then get back the number of the top line
 	CALL(LINADD)		; calculate the address of this line
 	LBR	CLRLIN		; and then go clear it
 
