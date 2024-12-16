@@ -1,4 +1,4 @@
-	.TITLE	Spare Time Gizmos VT1802 Video Terminal Firmware
+E
 	.SBTTL	Bob Armstrong [24-APR-2024]
 
 
@@ -641,24 +641,24 @@ XBLOCK:	.BLOCK	1	; current XMODEM block number
 XCOUNT:	.BLOCK	1	; current XMODEM buffer byte count
 XDONE:	.BLOCK	1	; non-zero when we receive EOT from the host
 
-;   These are the GET and PUT pointer pairs for each of the circular buffers.
-; Remember - don't separate the GET and PUT pairs, and the GET pointer must
-; always be first, followed by the PUT.
+;   These are the GET and PUT pointer pairs for the UART transmitter. These
+; must remain together, and in this order, GET first then PUT.
 TXGETP:	.BLOCK	1	; serial port transmitter buffer pointers 
 TXPUTP:	.BLOCK	1	; ...
+
+;   These bytes are used for managing the UART receiver. First are the GET
+; and put pointers for the circular buffer. FLOCTL determines if flow control
+; is enabled, and TXONOF is used for XON/XOFF flow control.  These bytes MUST
+; AL BE TOGETHER and in this exact order!
 RXGETP:	.BLOCK	1	; serial port receiver buffer pointers
 RXPUTP:	.BLOCK	1	; ...
-KEYGETP:.BLOCK	1	; and keyboard buffer pointers
-KEYPUTP:.BLOCK	1	; ...
-
-;   These bytes are used for the receiver flow control.  RXBUFC counts the
-; number of bytes in the buffer, FLOCTL controls whether flow control is
-; enabled, and TXONOF is used for XON/XOFF flow control.  All these bytes 
-; MUST BE TOGETHER and in this order!
-RXBUFC:	.BLOCK	1	; count of bytes in RX buffer for flow control
 FLOCTL:	.BLOCK	1	; flow control mode: $01->CTS, $FF->XON/XOFF, 0->none
 TXONOF:	.BLOCK	1	; $00 -> receiving normally, $01 -> transmit XON
 			; $FF -> transmit XOFF, $FE -> XOFF transmitted
+
+;   These are the GET and PUT pointer pairs for the keyboard buffer.
+KEYGETP:.BLOCK	1	; and keyboard buffer pointers
+KEYPUTP:.BLOCK	1	; ...
 
 ;   These locations are used by the TRAP routine to save the current context.
 ; Note that the order of these bytes is critical - you can't change 'em without
@@ -3934,6 +3934,7 @@ EOFIS2:	IRX\ POPRL(T1)		; restore T1
 ; here the main ISR has already saved D, DF (and X and P, of course), but
 ; anything else we use we have to preserve.
 ;--
+
 SLUISR:	PUSHR(T1)		; save a register to work with
 
 ;   First, read the UART status register and see if the framing error (FE)
@@ -3941,56 +3942,56 @@ SLUISR:	PUSHR(T1)		; save a register to work with
 ; receiver buffer (it's garbage anyway).  Note that we currently ignore the
 ; parity error and overrun error bits - it's not clear what useful thing we
 ; could do with these anyway.
-	SEX	SP		; ...
+
 	INP SLUSTS\ ANI SL.FE	; framing error?
-	LBZ	SLUIS0		; no - check for received data
+	LBZ SLUIRX		; no - check for received data
+
 	RLDI(T1,SERBRK)		; point to the serial break flag
 	LDI $FF\ STR T1		; and set it to indicate a break received
-	INP	SLUBUF		; read and discard the received data
-	LBR	SLUIS1		; and go check the transmitter
+	LBR SLUIR6		; read and discard the received data
 
 ;   See if the UART receiver needs service.  If there's a character waiting,
 ; then add it to the RXBUF.  If the RXBUF is full, then we just discard the
-; character; there's not much else that we can do.  Note that simply reading
-; the status register will have cleared the interrupt request, so if the buffer
-; is full there's no need to actually read the data register.
-SLUIS0:	INP SLUSTS\ ANI SL.DA	; is the DA bit set?
-	LBZ	SLUIS1		; no - go check the transmitter
-	RLDI(T1,RXPUTP)\ LDN T1	; load the RXBUF PUT pointer
-	ADI 1\ ANI RXBUFSZ-1	; try incrementing it (w/wrap around!)
-	STR	SP		; save that temporarily
-	DEC T1\ LDA T1\ XOR	; would it equal the GET pointer?
-	LBZ	SLUIS4		; yes - buffer full; discard character
-	LDN SP\ STR T1		; no - update the PUT pointer
-	ADI LOW(RXBUF)\ PLO T1	; and index into the buffer
-	LDI HIGH(RXBUF)\ PHI T1	; ...
-	INP SLUBUF\ STR T1	; read and store the character
+; character; there's not much else that we can do.  If the buffer is getting
+; full then assert flow control as appropriate, if enabled.
 
-;   Increment the count of characters in the RX buffer and, if the buffer is
-; 2/3rds or more full, clear the CTS bit.  Hopefully the other end will stop
-; sending until we catch up!
-	RLDI(T1,RXBUFC)\ LDN T1	; increment count of characters in buffer
-	ADI 1\ LSNZ\ LDI $FF	;  ... but don't allow overflow 255 -> 0!
-	STR T1\ SMI RXSTOP	; is the buffer almost full?
-	LBL	SLUIS1		; no - go check the transmitter
-	INC T1\ LDN T1		; get the flow control mode
-	LBZ	SLUIS1		; branch if no flow control
-	XRI $FF\ LBZ SLUI00	; branch if XON/XOFF flow control
+SLUIRX:	INP SLUSTS\ ANI SL.DA	; is the DA bit set?
+	LBZ SLUIS1		; no - go check the transmitter
+
+	RLDI(T1,RXGETP)		; load the RXBUF PUT pointer
+	SEX T1\ LDXA\ SD	; get number of characters in buffer
+	LSDF\ ADI RXBUFSZ	; if negative, add buffer size to adjust
+
+	SMI RXBUFSZ-1		; is the buffer is already full
+	LBL SLUIR1		; no - check if flow control needed
+	SEX SP\ LBR SLUIR6	; yes - read the character but discard it
+
+SLUIR1:	ADI RXBUFSZ-RXSTOP	; is the buffer less than 2/3 full
+	LBL SLUIR5		; yes - just get input character
+
+	INC T1\ LDN T1		; get flow control option
+	LBZ SLUIR4		; if zero - no flow control needed
+	XRI $FF\ LBZ SLUIR2	; if ff - do XON/XOFF flow control
 
 ; Here for CTS flow control ...
 	SEX INTPC\ OUT FLAGS	; clear CTS
-	 .BYTE	 FL.CCTS	;  ...
-	SEX SP\ LBR SLUIS1	; and now check the transmitter next
+	.BYTE FL.CCTS		;  ...
+	SEX T1\ LBR SLUIR4	; and now check the transmitter next
 
 ; Here for XON/XOFF flow control ...
-SLUI00:	INC T1\ LDN T1		; read the TXONOF flag
-	LSNZ\ LDI $FF		; set to $FF unless already non-zero
-	STR T1\ LBR SLUIS1	; now go check the transmitter
+SLUIR2:	INC T1\ LDN T1		; read the TXONOF flag
+	BNZ SLUIR3		; if already set non-zero do nothing
+	LDI $FF\ STR T1		; set to $ff to trigger xoff transmit
 
-;   Here if the SLU has received a character but the RXBUF is full.  We still
-; have to read the receiver buffer to clear the DA flag, otherwise the IRQ
-; will never go away!
-SLUIS4:	SEX SP\ INP SLUBUF	; read the character and discard it
+; Copy the character into the buffer
+SLUIR3: DEC T1			; backup to FLOCTL
+SLUIR4: DEC T1			; backup to RXPUTP
+SLUIR5:	LDN T1\ ADI 1		; get PUT pointer and increment
+	ANI RXBUFSZ-1\ STR T1	; modulo buffer size and update
+	ADI LOW(RXBUF)\ PLO T1	; and index into the buffer
+	LDI HIGH(RXBUF)\ PHI T1	; ...
+SLUIR6:	INP SLUBUF\ SEX SP	; read the character into buffer
+
 
 ;   Before checking the transmitter, check if the DMA pointer has advanced
 ; past the end of the screen while we were working, since the last check,
@@ -4105,6 +4106,8 @@ KEYIS5:	SEX SP\ IRX\ POPRL(T1)	; restore T1
 
 	.SBTTL	Serial Port Buffer Routines
 
+;   Before checking the transmitter, check if the DMA pointer has advanced
+; past the end of the screen while we were working, since the last check,
 ;++
 ;   This routine will extract and return the next character from the serial
 ; port receive buffer and return it in D.  If the buffer is empty then it
@@ -4115,43 +4118,35 @@ KEYIS5:	SEX SP\ IRX\ POPRL(T1)	; restore T1
 ; occurs while we're here.
 ;--
 SERGET:	PUSHR(T1)		; save a temporary register
-	IOFF			; no interrupts for now
-	RLDI(T1,RXGETP)\ LDA T1	; load the GET pointer
-	SEX  T1\ XOR		; does GET == PUT?
-	LBZ	SERGE1		; yes - the buffer is empty!
-	DEC T1\ LDN T1		; no - reload the GET pointer
-	ADI 1\ ANI RXBUFSZ-1	; and increment it w/wrap around
-	STR	T1		; update the GET pointer
+	RLDI(T1,RXGETP)		; load the RXBUF GET pointer
+	SEX PC\ DIS		; disable interrupts and SEX T1
+	.BYTE (T1<<4)|PC	; ...
+	LDXA\ SD\ LBZ SERGE1	; skip if nothing in buffer -- DF is set
+
+	LSDF\ ADI RXBUFSZ	; if negative, add buffer size to adjust
+	SMI RXSTART		; is the buffer almost empty?
+	LBGE SERGE0		; no - just keep going
+
+	SEX PC\ OUT FLAGS	; yes - enable CTS always
+	.BYTE FL.SCTS		; ...
+
+	INC T1\ INC T1\ LDN T1	; read TXONOFF to see if XON needed
+	XRI $FE\ LBNZ SERGE2	; if we have not sent XOFF do nothing
+	LDI 1\ STR T1		; else send an XON ASAP
+	OUT SLUCTL\ .BYTE SL.TR	; and always set the TR bit
+
+SERGE2:	DEC T1\ DEC T1		; point back to PUT pointer
+SERGE0:	DEC T1			; point back to GET pointer
+	LDN T1\ ADI 1		; increment GET pointer
+	ANI RXBUFSZ-1\ STR T1	; modulo the buffer size and update
 	ADI LOW(RXBUF)\ PLO T1	; build a pointer into the buffer
-	LDI HIGH(RXBUF)\ PHI T1	; ...
-	LDN T1\ SEX SP\ PUSHD	; load the character and save it
+	LDI HIGH(RXBUF)\ PHI T1	; add can never overflow -- DF is clear
+	LDN T1\ PHI AUX		; load the character and save it
 
-; If the buffer is now empty or nearly so, turn on CTS or send XON!
-	RLDI(T1,RXBUFC)\ LDN T1	; get the RX buffer count
-	LSZ\ SMI 1		; decrement it but don't allow wrap around!
-	STR T1\ SMI RXSTART	; is the buffer almost empty?
-	LBGE	SERGE0		; no - just keep going
-	RLDI(T1,FLOCTL)\ LDN T1	; see if flow control is enabled
-	LBZ	SERGE0		; not enabled
-	XRI $FF\ LBZ SERG00	; branch if XON/XOFF flow control
-
-; Here for CTS flow control ...
-	OUTI(FLAGS, FL.SCTS)	; yes - enable CTS again
-	LBR	SERGE0		; and we're done
-
-; Here for XON/XOFF flow control ...
-SERG00:	INC T1\ LDN T1		; read TXONOFF next
-	XRI $FE\ LBNZ SERGE0	; have we previously sent XOFF?
-	LDI 1\ STR T1		; yes - send an XON ASAP
-	OUTI(SLUCTL, SL.TR)	; and always set the TR bit
-
-; Return whatever we found ...
-SERGE0:	SEX SP\ POPD		; restore the character read
-	CDF\ LSKP		; and return DF=0
-SERGE1:	SDF			; buffer empty - return DF=1
-	ION			; allow interrupts again
-	PHI AUX\ IRX\ POPRL(T1)	; restore T1
-	GHI AUX\ RETURN		; and we're done
+SERGE1:	SEX PC\ RET		; allow interrupts and SEX SP
+	.BYTE (SP<<4)|PC	; ...
+	IRX\ POPRL(T1)		; restore T1 from stack
+	GHI AUX\ RETURN		; recover character and return it
 
 ;++
 ;  This is just like SERGET, except that it will wait for input if none is
