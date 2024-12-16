@@ -171,8 +171,12 @@ E
 ; 034	-- Check for end of screen and reset the DMAPTR if needed in the
 ;	     middle of the serial ISR between receive and transmit.
 ;
+; 035	-- Remove DMA burst space to stop flicket. Allow interrupts while
+;	     scrolling and speed up scrolling. Reduce time interrupts
+;	     disabled in LDCURS. Streamline serial receive and buffer
+;	     handling, remove buffer count variable.
 ;--
-VEREDT	.EQU	34	; and the edit level
+VEREDT	.EQU	35	; and the edit level
 
 ; TODO list-
 ;   Drawing boxes and lines should be easier - maybe some kind of escape
