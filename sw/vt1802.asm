@@ -1510,31 +1510,37 @@ TERM:	RLDI(T1,KEYBRK)\ SEX T1	; clear both the KEYMNU and KEYBRK flags
 	RLDI(T1,SERBRK)		; and clear the serial break flag too
 	LDI 0\ STR T1		; ...
 
-TERM1:	CALL(ISKMNU)		; was the menu key pressed ?
-	LBDF	TERM4		; yes - start the command scanner
-	CALL(ISSBRK)		; was a break received on the serial port?
-;;	LBDF	TERM1		; yes - ignore it
+TERM1:	LDI LOW(KEYMNU)\ PLO T1 ; was the menu key pressed ?
+	LDN T1\ LBZ TERM2	; no - go check for serial break
+	LDI 0\ STR T1		; yes - clear the menu key flag
+	OUTSTR(TEMSG)		; print a message
+	LBR MAIN		; and start up the command scanner
 
-; Check the serial port for input first ...
-	CALL(SERGET)		; anything in the buffer
-	LBDF	TERM2		; no - check the PS/2 keyboard
+TERM2:	LDI LOW(SERBRK)\ PLO T1	; was a serial break received ?
+	LDN T1\ LBZ TERM3	; no - go check for keyboard break
+	LDI 0\ STR T1		; yes - clear the serial break flag
+
+TERM3:	LDI LOW(KEYBRK)\ PLO T1	; was the BREAK key pressed ?
+	LDN T1\ LBZ TERM4	; no - go check for serial input
+	LDI 0\ STR T1		; yes - clear the KEYBRK flag
+	CALL(TXSBRK)		; and send a break on the serial port
+
+TERM4:	CALL(SERGET)		; anything in the buffer
+	LBDF TERM5		; no - check the PS/2 keyboard
 	CALL(VTPUTC)		; yes - send this character to the screen
 
-; Check the PS/2 keyboard for input ...
-TERM2:	CALL(ISKBRK)		; was the BREAK key pressed ?
-	LBDF	TERM3		; yes - send a break on the serial port
-	CALL(GETKEY)		; anything waiting from the keyboard?
-	LBDF	TERM1		; no - back to checking the serial port
+	CALL(SERGET)		; anything in the buffer
+	LBDF TERM5		; no - check the PS/2 keyboard
+	CALL(VTPUTC)		; yes - send this character to the screen
+
+	CALL(SERGET)		; anything in the buffer
+	LBDF TERM5		; no - check the PS/2 keyboard
+	CALL(VTPUTC)		; yes - send this character to the screen
+
+TERM5:	CALL(GETKEY)		; anything waiting from the keyboard?
+	LBDF TERM1		; no - back to checking the serial port
 	CALL(SERPUT)		; yes - send it to the serial port
-	LBR	TERM1		; and keep going
-
-; Here when the PS/2 keyboard BREAK key is pressed ...
-TERM3:	CALL(TXSBRK)		; send a break on the serial port
-	LBR	TERM1		; and then continue
-
-; Here when the PS/2 keyboard MENU key is pressed ...
-TERM4:	OUTSTR(TEMSG)		; print a message
-	LBR	MAIN		; and start up the command scanner
+	LBR TERM1		; and keep going
 
 ; Messages ...
 TTMSG:	.TEXT	"[TERMINAL MODE]\r\n\000"
@@ -2670,29 +2676,22 @@ DOWN:	RLDI(T1,CURSY)		; get the row number where the cursor is
 ; to turn the cursor on or off, but we can fake it out by loading the cursor
 ; registers with a position that's off the screen.  In that case it'll never
 ; be displayed.
-;
-;   Note that the end of frame ISR reads the CRTC status register and we have
-; to be careful that doesn't happen in between the LOAD CURSOR command and the
-; two parameter bytes for the same!
 ;--
 LDCURS:	RLDI(T1,HIDCURS)\ LDN T1; is the cursor hidden ?
 	LBNZ	LDCUR1		; yes - do that
 
 ; Here to show the real cursor ...
 	LDI LOW(CURSX)\ PLO T1	; point to the cursor location
-	SEX PC\ DIS\ .BYTE $33	; disable interrupts
-	OUT CRTCMD\ .BYTE CC.LCUR ; give the load cursor command
-	SEX	T1		; and output X ...
-	OUT CRTPRM\ OUT CRTPRM	; ... and then Y ...
-	SEX PC\ RET\ .BYTE $33	; enable interrupts again
-	RETURN			; all is safe again
+	SEX PC\ OUT CRTCMD	; give the load cursor command
+	.BYTE CC.LCUR		; ...
+	SEX T1\ OUT CRTPRM	; and output X ...
+	OUT CRTPRM\ RETURN	; ... and then Y ... and return
 
 ; Here to hide the cursor ...
-LDCUR1:	SEX PC\ DIS\ .BYTE $33	; disable interrupts
-	OUT CRTCMD\ .BYTE CC.LCUR; give the load cursor command
-	OUT CRTPRM\ .BYTE MAXCOL ; and give a position that's off screen
-	OUT CRTPRM\ .BYTE MAXROW ; ...
-	RET\ .BYTE $33		; enable interrupts again
+LDCUR1:	SEX PC\ OUT CRTCMD	; give the load cursor command
+	.BYTE CC.LCUR		; ...
+	OUT CRTPRM\ .BYTE 80 	; off-screen regardless of MAXCOL/MAXROW
+	OUT CRTPRM\ .BYTE 64	; ...
 	RETURN			; all is safe again
 
 
