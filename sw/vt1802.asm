@@ -1510,31 +1510,37 @@ TERM:	RLDI(T1,KEYBRK)\ SEX T1	; clear both the KEYMNU and KEYBRK flags
 	RLDI(T1,SERBRK)		; and clear the serial break flag too
 	LDI 0\ STR T1		; ...
 
-TERM1:	CALL(ISKMNU)		; was the menu key pressed ?
-	LBDF	TERM4		; yes - start the command scanner
-	CALL(ISSBRK)		; was a break received on the serial port?
-;;	LBDF	TERM1		; yes - ignore it
+TERM1:	LDI LOW(KEYMNU)\ PLO T1 ; was the menu key pressed ?
+	LDN T1\ LBZ TERM2	; no - go check for serial break
+	LDI 0\ STR T1		; yes - clear the menu key flag
+	OUTSTR(TEMSG)		; print a message
+	LBR MAIN		; and start up the command scanner
 
-; Check the serial port for input first ...
-	CALL(SERGET)		; anything in the buffer
-	LBDF	TERM2		; no - check the PS/2 keyboard
+TERM2:	LDI LOW(SERBRK)\ PLO T1	; was a serial break received ?
+	LDN T1\ LBZ TERM3	; no - go check for keyboard break
+	LDI 0\ STR T1		; yes - clear the serial break flag
+
+TERM3:	LDI LOW(KEYBRK)\ PLO T1	; was the BREAK key pressed ?
+	LDN T1\ LBZ TERM4	; no - go check for serial input
+	LDI 0\ STR T1		; yes - clear the KEYBRK flag
+	CALL(TXSBRK)		; and send a break on the serial port
+
+TERM4:	CALL(SERGET)		; anything in the buffer
+	LBDF TERM5		; no - check the PS/2 keyboard
 	CALL(VTPUTC)		; yes - send this character to the screen
 
-; Check the PS/2 keyboard for input ...
-TERM2:	CALL(ISKBRK)		; was the BREAK key pressed ?
-	LBDF	TERM3		; yes - send a break on the serial port
-	CALL(GETKEY)		; anything waiting from the keyboard?
-	LBDF	TERM1		; no - back to checking the serial port
+	CALL(SERGET)		; anything in the buffer
+	LBDF TERM5		; no - check the PS/2 keyboard
+	CALL(VTPUTC)		; yes - send this character to the screen
+
+	CALL(SERGET)		; anything in the buffer
+	LBDF TERM5		; no - check the PS/2 keyboard
+	CALL(VTPUTC)		; yes - send this character to the screen
+
+TERM5:	CALL(GETKEY)		; anything waiting from the keyboard?
+	LBDF TERM1		; no - back to checking the serial port
 	CALL(SERPUT)		; yes - send it to the serial port
-	LBR	TERM1		; and keep going
-
-; Here when the PS/2 keyboard BREAK key is pressed ...
-TERM3:	CALL(TXSBRK)		; send a break on the serial port
-	LBR	TERM1		; and then continue
-
-; Here when the PS/2 keyboard MENU key is pressed ...
-TERM4:	OUTSTR(TEMSG)		; print a message
-	LBR	MAIN		; and start up the command scanner
+	LBR TERM1		; and keep going
 
 ; Messages ...
 TTMSG:	.TEXT	"[TERMINAL MODE]\r\n\000"
