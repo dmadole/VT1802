@@ -1,4 +1,4 @@
-E
+	.TITLE	Spare Time Gizmos VT1802 Video Terminal Firmware
 	.SBTTL	Bob Armstrong [24-APR-2024]
 
 
@@ -178,8 +178,13 @@ E
 ;
 ; 036	-- Fix SCRDWN to erase the correct line. Fix DMA burst setting.
 ;
+; 037	-- Speed improvement in main terminal loop and enable interrupt
+;            during cursor load.
+;
+; 038	-- Add assembly options (CPUCLOCK, PIXELCLOCK, and GLYPHWIDTH) to
+;	    splash screen.
 ;--
-VEREDT	.EQU	36	; and the edit level
+VEREDT	.EQU	38	; and the edit level
 
 ; TODO list-
 ;   Drawing boxes and lines should be easier - maybe some kind of escape
@@ -797,7 +802,7 @@ XHDR4:	.BLOCK	1		; received checksum
 	.ORG	RAMEND-SCRNSIZE+1
 SCREEN:	.BLOCK	SCRNSIZE		; the whole screen lives here!
 
-	.SBTTL	Startup, Copyright and Vectors
+	.SBTTL	Startup and BASIC Vectors
 
 ;++
 ;   This code gets control immediately after a hardware reset, and contains
@@ -848,11 +853,17 @@ SCREEN:	.BLOCK	SCRNSIZE		; the whole screen lives here!
 	LBR	BTIME		; 23 - return current UPTIME
 	.ENDIF
 
+	.SBTTL	Copyright and System Information
+
+;   This macro will convert a 3 digit decimal number, 0..999, into three
+; ASCII characters with leading zeros.  It's crude, but it works!
+#define TODEC(x)	.BYTE '0'+((x)%10)
+#define	TODEC3(x)	.BYTE '0'+((x/100)%10), '0'+((x/10)%10), '0'+(x%10)
+
 ;++
-;   And lastly the firmware version, name, copyright notice and date all live
-; at the end of the vector table.  These strings should appear at or near to
-; the beginning of the EPROM, because we don't want them to be hard to find,
-; after all!
+;   The firmware version, name, copyright notice and date all live here.  These
+; strings should appear at or near to the beginning of the EPROM, because we
+; don't want them to be hard to find, after all!
 ;--
 SYSNAM:	.TEXT	"SPARE TIME GIZMOS VT1802 V"
 	.BYTE	'0'+(VEREDT/100)
@@ -865,6 +876,26 @@ RIGHTS2:.TEXT	" All rights reserved\000"
 	.IF (BASIC != 0)
 BRIGHTS:.TEXT	"RCA BASIC3 V1.1 BY Ron Cenker\000"
 	.ENDIF
+
+;   We've accumulated a lot of assembly options - different CPU clocks, pixel
+; clocks, and font sizes.  It causes a lot of problems when run the software
+; with one set of options on hardware that's built a different way.  Let's
+; embed all the configuration options in here so we can at least tell how
+; this EPROM image was assembled.
+SYSOPT:	.TEXT	"CPU Clock "
+	.BYTE	'0'+(CPUCLOCK/1000000)
+	.TEXT	"."
+	TODEC3((CPUCLOCK/1000) % 1000)
+	.TEXT	"MHz Pixel Clock "
+;   Yes, you'd like to use TODEC here, but it doesn't work!  There's some
+; kind of bug in TASM that makes it give the wrong results.  Sorry
+	.BYTE	'0'+(PIXELCLOCK/10000000)
+	.BYTE	'0'+((PIXELCLOCK/1000000)%10)
+	.TEXT	"."
+	TODEC3((PIXELCLOCK/1000) % 1000)
+	.TEXT	"MHz "
+	TODEC(GLYPHWIDTH)
+	.TEXT	" pixels/glyph\000"
 
 	.SBTTL	Hardware Initializtion
 
@@ -934,6 +965,8 @@ SYSIN3:	CALL(TCRLF)		; ...
 	CALL(TCRLF)		; ...
 	OUTSTR(BRIGHTS)		; print the BASIC copyright notice toe
 	.ENDIF
+	CALL(TCRLF)		; ...
+	OUTSTR(SYSOPT)		; print the assembly options used here
 	CALL(TCRLF)\ CALL(TCRLF); ...
 
 ; If BASIC isn't installed, then just fall into the command scanner!
@@ -2522,7 +2555,6 @@ SCRDWN:	RLDI(T1,TOPLIN)\ LDN T1	; get the top line of the screen
 	CALL(LINADD)		; calculate the address of this line
 	LBR	CLRLIN		; and then go clear it
 
-
 	.SBTTL	Clear Screen Function
 
 ;++
@@ -2855,9 +2887,11 @@ SPL11:	LDI ' '\ STR P1\ INC P1	; store spaces
 	INLMES("\033Y$$")
 	OUTSTR(RIGHTS1)		;  ... of this firmware
 	.IF (BASIC != 0)
-	INLMES("\033Y%$")	; and one last line
+	INLMES("\033Y%$")	; and one more line
 	OUTSTR(BRIGHTS)		;  ... to display the BASIC3 notice
 	.ENDIF
+	INLMES("\033Y&$")	; lastly display the build options
+	OUTSTR(SYSOPT)		; ...
 	OUTSTR(SPLMS2)		; then display everything else
 
 ; Draw a line drawing attributes demo in the upper right corner ...
@@ -2975,12 +3009,7 @@ VTINI:	OUTI(CRTCMD, CC.REST)	;  ... reset the 8275
 ;--
 DSPON:	OUTI(CRTCMD, CC.EI)	; enable CRTC interrupts
 	OUTI(CRTCMD, CC.CPRE)	; preload the counters
-;   Turn on the video and program the 8275 DMA burst timing.  Currently we 
-; program the 8275 to DMA two bytes at a time, and to allow 7 character clocks
-; between DMA bursts.  We want to distribute the DMA overhead around as evenly
-; as possible to avoid excessive 1802 interrupt latency when servicing the
-; serial port, BUT we have to be sure that the 8275 is able to fill its row
-; buffer before the next text row comes up on the display.
+; Turn on the video and program the 8275 DMA burst timing.
 	OUTI(CRTCMD, CC.STRT+3)	; 8 bytes/DMA burst, no delay detween
 ; Read the 8275 status register to set the VT1802 VIDEO ON flip flop ...
 	SEX SP\ INP CRTSTS	; read status and enable video
@@ -3938,7 +3967,6 @@ EOFIS2:	IRX\ POPRL(T1)		; restore T1
 ; here the main ISR has already saved D, DF (and X and P, of course), but
 ; anything else we use we have to preserve.
 ;--
-
 SLUISR:	PUSHR(T1)		; save a register to work with
 
 ;   First, read the UART status register and see if the framing error (FE)
@@ -4110,8 +4138,6 @@ KEYIS5:	SEX SP\ IRX\ POPRL(T1)	; restore T1
 
 	.SBTTL	Serial Port Buffer Routines
 
-;   Before checking the transmitter, check if the DMA pointer has advanced
-; past the end of the screen while we were working, since the last check,
 ;++
 ;   This routine will extract and return the next character from the serial
 ; port receive buffer and return it in D.  If the buffer is empty then it
