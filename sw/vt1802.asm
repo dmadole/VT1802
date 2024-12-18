@@ -1548,7 +1548,7 @@ TERM:	RLDI(T1,KEYBRK)\ SEX T1	; clear both the KEYMNU and KEYBRK flags
 	RLDI(T1,SERBRK)		; and clear the serial break flag too
 	LDI 0\ STR T1		; ...
 
-TERM1:	LDI LOW(KEYMNU)\ PLO T1 ; was the menu key pressed ?
+TERM1:	RLDI(T1,KEYMNU)		; was the menu key pressed ?
 	LDN T1\ LBZ TERM2	; no - go check for serial break
 	LDI 0\ STR T1		; yes - clear the menu key flag
 	OUTSTR(TEMSG)		; print a message
@@ -1565,15 +1565,15 @@ TERM3:	LDI LOW(KEYBRK)\ PLO T1	; was the BREAK key pressed ?
 
 TERM4:	CALL(SERGET)		; anything in the buffer
 	LBDF TERM5		; no - check the PS/2 keyboard
-	CALL(VTPUTC)		; yes - send this character to the screen
+	CALL(VTPUTT)		; yes - send this character to the screen
 
 	CALL(SERGET)		; anything in the buffer
 	LBDF TERM5		; no - check the PS/2 keyboard
-	CALL(VTPUTC)		; yes - send this character to the screen
+	CALL(VTPUTT)		; yes - send this character to the screen
 
 	CALL(SERGET)		; anything in the buffer
 	LBDF TERM5		; no - check the PS/2 keyboard
-	CALL(VTPUTC)		; yes - send this character to the screen
+	CALL(VTPUTT)		; yes - send this character to the screen
 
 TERM5:	CALL(GETKEY)		; anything waiting from the keyboard?
 	LBDF TERM1		; no - back to checking the serial port
@@ -1921,6 +1921,25 @@ SHORE2:	OUTCHR('R')		; type "Rn="
 BPTMSG:	.TEXT	"\r\nBREAK AT \000"
 
 	.SBTTL	Output Characters to the Screen
+;++
+;   This is a wrapper around the VTPUTT routine to save the registers that
+; BASIC or command mode may need preserved but that the terminal routine
+; does not (which calls VTPUTT directly). This saves the overhead of the
+; save and restores where it is not needed.
+VTPUTC:	PHI AUX\ SEX SP		; save character in a safe place
+	PUSHR(T1)		; save the registers that we use 
+	PUSHR(T2)		; ...
+	PUSHR(P1)		; ...
+
+	GHI AUX
+	CALL(VTPUTT)
+
+ 	RLDI(T1,CURCHR)		; gotta get back the original data
+	LDN T1\ PHI AUX		; save it for a moment
+	SEX SP\ IRX\ POPR(P1)	; restore the registers we saved
+	POPR(T2)		; ...
+	POPRL(T1)		; ...
+	CDF\ GHI AUX\ RETURN	; and we're done!
 
 ;++
 ;   This routine is called whenever we want to send a character to the video
@@ -1935,47 +1954,34 @@ BPTMSG:	.TEXT	"\r\nBREAK AT \000"
 ; important that we preserve all registers used AND that we return the original
 ; character in D.
 ;--
-VTPUTC:	PHI AUX\ SEX SP		; save character in a safe place
-	PUSHR(T1)		; save the registers that we use 
-	PUSHR(T2)		; ...
-	PUSHR(P1)		; ...
-	RLDI(T1,CURCHR)\ SEX T1	; point to our local storage
-	GHI AUX\ STXD		; move the character to CURCHR
-	LDXA			; and then load ESCSTA
-	LBNZ	VTPUT2		; jump if we're processing an escape sequence
+VTPUTT:	PHI AUX			; save character in a safe place
 
-; This character is not part of an escape sequence...
-	GHI AUX\ ANI $7F	; trim to 7 bits
-	PHI AUX\ LBZ VTPUT9	;  ... and ignore null characters
-	XRI $7F\ LBZ VTPUT9	;  ... ignore RUBOUTs too
+VTPUT6:	RLDI(T1,CURCHR)		; point to our local storage
+	GHI AUX\ STR T1		; move the character to CURCHR
+
+	DEC T1\ LDN T1		; and then load ESCSTA
+	LBZ VTPUT3		; jump if we're processing an escape sequence
+
+	SHL\ ADI LOW(ESTATE)
+	PLO T1\ LDI 0
+	ADCI HIGH(ESTATE)
+	PHI T1\ LBR LBRI2
+
+VTPUT3:	GHI AUX\ ANI $7F	; trim to 7 bits
+	PHI AUX\ LBZ VTPUT5	;  ... and ignore null characters
+	XRI $7F\ LBZ VTPUT5	;  ... ignore RUBOUTs too
 	GHI AUX\ SMI ' '	; is this a control character ?
-	LBL	VTPUT1		; branch if yes
+	LBGE VTPUT4		; branch if yes
 
-; This character is a normal, printing, character...
-	GHI AUX\ CALL(NORMAL)	; display it as a normal character
+	GHI AUX			; restore the original character
+	SHL\ ADI LOW(CTLTAB)
+	PLO T1\ LDI 0
+	ADCI HIGH(CTLTAB)
+	PHI T1\ LBR LBRI2
 
-;   And return...  It's a bit of extra work, but it's really important that
-; we return the same value in D that we were originally called with.  Some
-; code depends on this!
-VTPUT9:	RLDI(T1,CURCHR)		; gotta get back the original data
-	LDN T1\ PHI AUX		; save it for a moment
-	SEX SP\ IRX\ POPR(P1)	; restore the registers we saved
-	POPR(T2)		; ...
-	POPRL(T1)		; ...
-;  It's critical the we return with DF=0 for compatibility with SERPUT.  If
-; we don't we risk CONPUT calling us multiple times for the same character!
-	CDF\ GHI AUX\ RETURN	; and we're done!
+VTPUT4:	GHI AUX\ LBR NORMAL	; display it as a normal character
 
-; Here if this character is a control character...
-VTPUT1:	GHI	AUX		; restore the original character
-	CALL(LBRI)		; and dispatch to the correct routine
-	 .WORD	 CTLTAB		; ...
-	LBR	VTPUT9		; then return normally
-
-; Here if this character is part of an escape sequence...
-VTPUT2:	CALL(LBRI)		; branch to the next state in escape processing
-	 .WORD	 ESTATE		; table of escape states
-	LBR	VTPUT9		; and return
+VTPUT5:	RETURN
 
 	.SBTTL	Write Normal Characters to the Screen
 
@@ -2353,7 +2359,8 @@ LBRI:	SHL\ STR SP		; multiply the jump index by 2
 	LDA A\ PHI T1		; get the high byte of the table address
 	LDA A\ ADD\ PLO T1	; add the index to the table address
 	GHI T1\ ADCI 0\ PHI T1	; then propagate the carry bit
-	RLDI(T2,LBRI1)\ SEP T2	; then switch the PC to T2
+
+LBRI2:	RLDI(T2,LBRI1)\ SEP T2	; then switch the PC to T2
 
 ; Load the address pointed to by T1 into the PC and continue
 LBRI1:	LDA T1\ PHI PC		; get the high byte of the address
