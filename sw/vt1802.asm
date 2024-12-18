@@ -178,8 +178,12 @@ E
 ;
 ; 036	-- Fix SCRDWN to erase the correct line. Fix DMA burst setting.
 ;
+; 037	-- Align LINTAB to speed up access in critical path. Rewrite the
+;	     normal (regular printable) character handling routine to speed
+;	     up termianl output.
+;
 ;--
-VEREDT	.EQU	36	; and the edit level
+VEREDT	.EQU	37	; and the edit level
 
 ; TODO list-
 ;   Drawing boxes and lines should be easier - maybe some kind of escape
