@@ -2010,16 +2010,13 @@ NORMAL:	STR SP			; save the character for a minute
 ;   BTW, don't be tempted to do an "ANI $7F" here, because WFAC uses this
 ; to write field attribute codes to the screen!
 
-NORMA1:	LDA T1\ SEX T1		; point to TOPLIN and get it
-	INC T1\ ADD \ SHL	; point to CURSY and add then double
-	PLO T2			; index into line offset table
-	LDI HIGH(LINTAB+1)	; set the page of the table
-	PHI T2			; ...
+NORMA1:	LDA T1\ SEX T1\ INC T1	; point to TOPLIN and get it, move to CURSY
+	ADD\ SHL\ PLO T2	; add CURSY then double and set index lsb
+	LDI HIGH(LINTAB)\ PHI T2; set the page of the table index
 
 	DEC T1			; point to CURSX
-	LDN T2\ ADD\ PLO P1	; add low byte of address
-	DEC T2			; point to high byte of address
-	LDN T2\ ADCI 0\ PHI P1	; get and add any carry into it
+	LDA T2\ ADD\ PLO P1	; add low byte of address
+	LDN T2\ ADCI 0\ PHI P1	; get high byte and add any carry into it
 
 	LDN SP\ STR P1		; get character and put on screen
 
@@ -2799,30 +2796,28 @@ ENACURS:RLDI(T1,HIDCURS)	; ...
 ; be passed in the D and the resulting address is returned in P1...  Uses
 ; (but doesn't save!) T1...
 ;--
-LINADD:	SMI	MAXROW		; if the line number is off the screen
-	LBDF	LINADD		; reduce it modulo MAXROW
-	ADI	MAXROW		; until it's on the screen
-LINAD1: SHL\ ADI LOW(LINTAB)	; index into the line address table
-	PLO T1\ LDI HIGH(LINTAB); now do the high byte
-	ADCI 0\ PHI T1		; ...
-	LDA T1\ PHI P1		; that's the line address
-	LDN T1\ PLO P1		; ...
+LINADD: SHL\ PLO T1		; index into the line address table
+	LDI HIGH(LINTAB)\ PHI T1; now set the high byte
+	LDA T1\ PLO P1		; that's the line address
+	LDN T1\ PHI P1		; ...
 	RETURN			; and then that's all there is to do
 
 ;++
 ;   This table is used to translate character row numbers into actual screen
 ; buffer addresses.  It is indexed by twice the row number (0, 2, 4, ... 48) and
-; contains the corresponding RAM address of that line.
+; contains the corresponding RAM address of that line, least significant byte
+; first, as this aids with arithmetic as we can do LSB first with LDA.
 ;
 ;   This table is page aligned so that the LSB of the first entry starts the
 ; page, this saves having to add one later. Also, the table repears twice
 ; so that we can add TOPLIN and CURSY and use it directly as an index without
-; wrapping thr value around; the modulo operation is built into the table.
+; wrapping the value around; the modulo operation is built into the table.
 ;
 ;   Needless to say, it should have at least MAXROW (times two) entries!
 ; Note that some display modes have as many as 26 displayed lines.
 ;--
-	.ORG	($|$FF)
+	.ORG	(($-1)|$FF)+1
+	.LSFIRST				; set to lsb first
 LINTAB:	.WORD	SCREEN+(( 0%MAXROW)*MAXCOL)	; line #0
 	.WORD	SCREEN+(( 1%MAXROW)*MAXCOL)	; line #1
 	.WORD	SCREEN+(( 2%MAXROW)*MAXCOL)	; line #2
@@ -2875,6 +2870,7 @@ LINTAB:	.WORD	SCREEN+(( 0%MAXROW)*MAXCOL)	; line #0
 	.WORD	SCREEN+((49%MAXROW)*MAXCOL)	; line #49
 	.WORD	SCREEN+((50%MAXROW)*MAXCOL)	; line #50
 	.WORD	SCREEN+((51%MAXROW)*MAXCOL)	; line #51
+	.MSFIRST				; back to msb first
 
 	.SBTTL	Bell (^G) Function
 
@@ -3971,14 +3967,12 @@ ISR3:	BN_KEYIRQ ISRRET	; if not keyboard interrupt, then quit
 ; by the ^G bell function.
 ;--
 EOFISR:	PUSHR(T1)		; save a temporary register
-	INP	CRTSTS		; read the status register to clear the IRQ
+	INP CRTSTS		; read the status register to clear the IRQ
 	RLDI(T1,TOPLIN)		; point to TOPLIN
-	LDN T1\ SHL		; load the value of TOPLIN times two
-	ADI LOW(LINTAB)\ PLO T1	; index into the line pointer table
-	LDI HIGH(LINTAB)	; compute the high byte
-	ADCI 0\ PHI T1		;   ... with carry
-	LDA T1\ PHI DMAPTR	; reset the DMA pointer
-	LDN T1\ PLO DMAPTR	;  ... to the top of the screen
+	LDN T1\ SHL\ PLO T1	; load the value of TOPLIN times two
+	LDI HIGH(LINTAB)\ PHI T1; set the high byte
+	LDA T1\ PLO DMAPTR	; reset the DMA pointer
+	LDN T1\ PHI DMAPTR	;  ... to the top of the screen
 
 ;   If the bell timer is non-zero, then the beeper is turned on and we should
 ; decrement TTIMER.  When TTIMER reaches zero, we turn off the speaker.  This
