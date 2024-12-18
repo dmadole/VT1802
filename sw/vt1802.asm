@@ -610,10 +610,10 @@ DLYCONS	.EQU	CPUCLOCK/32000
 ; Other random VT52 emulator context variables...
 ;   WARNING!! DO NOT CHANGE THE ORDER OF TOPLIN, CURSX and CURSY!  The code
 ; DEPENDS on these three bytes being in this particular order!!!
+ACSMOD:	.BLOCK	1	; != 0 for alternate character set mode
 TOPLIN: .BLOCK	1	; the number of the top line on the screen
 CURSX:	.BLOCK	1	; the column number of the cursor
 CURSY:	.BLOCK	1	; the row number of the cursor
-ACSMOD:	.BLOCK	1	; != 0 for alternate character set mode
 HIDCURS:.BLOCK	1	; != 0 to hide the cursor
 ; DON'T CHANGE THE GROUPING OF ESCSTA, CURCHR and SAVCHR!!
 ESCSTA:	.BLOCK	1	; current ESCape state machine state
@@ -1960,28 +1960,45 @@ VTPUT2:	CALL(LBRI)		; branch to the next state in escape processing
 ; affected by the character set mode.  Also note that our alternate font
 ; isn't necessarily the same as the VT52!
 ;--
-NORMAL:	PUSHD			; save the character for a minute
+NORMAL:	STR SP			; save the character for a minute
 
 ; Check the character set mode...
-	SMI $60\ LBL NORMA1	; is this even a lower case letter anyway?
-	RLDI(T1,ACSMOD)\ LDN T1	; yes - get the character set mode flag
-	LBZ	NORMA1		; branch if normal mode
-	IRX\ LDI $60\ SD\ STXD	; ACS mode - shift it down to 0x00..0x1F
+	RLDI(T1,ACSMOD)		; point to character set mode flag
+	LDN T1\ BZ NORMA1	; get and branch if not ACS mode
+	LDN SP\ SMI $60		; is this a lower case letter?
+	BL NORMA1\ STR SP 	; if yes shift it down to 0x00..0x1F
 
 ; Now store the character in memory (finally!)
 ;   BTW, don't be tempted to do an "ANI $7F" here, because WFAC uses this
 ; to write field attribute codes to the screen!
-NORMA1:	CALL(WHERE)		; calculate the address of the cursor
-	POPD\ STR P1		; then write the character there
 
-;   After storing the character we want to move the cursor right.  This could
-; be as simple as just calling RIGHT:, but but that will stop moving the cursor
-; at the right margin.  We'd prefer to have autowrap, which means that we need
-; to start a new line if we just wrote the 80th character on this line...
-	RLDI(T1,CURSX)\ LDN T1	; get the cursor X location
-	XRI	MAXCOL-1	; are we at the right edge?
-	LBNZ	RIGHT1		; nope - just move right and return
-	LBR	AUTONL		; yes - do an automatic new line
+NORMA1:	INC T1\ LDA T1\ SEX T1\	; point to TOPLIN and get it
+	INC T1\ ADD \ SHL	; point to CURSY and add then double
+	PLO T2			; index into line offset table
+	LDI HIGH(LINTAB+1)	; set the page of the table
+	PHI T2			; ...
+
+	DEC T1			; point to CURSX
+	LDN T2\ ADD\ PLO P1	; add low byte of address
+	DEC T2			; point to high byte of address
+	LDN T2\ ADCI 0\ PHI P1	; get and add any carry into it
+
+	LDN SP\ STR P1		; get character and put on screen
+
+	LDN T1\ SMI MAXCOL-1	; get CURSX and check if last column
+	BZ NORMA2		; yes - need to adjust row
+	ADI MAXCOL\ STR T1	; no - add one to CURSX
+	LBR LDCURS		; update hardware cursor location
+
+NORMA2: STR T1\ INC T1		; zero the column and point to CURSY
+	LDN T1\ SMI MAXROW-1	; get CURSY and check if last row
+	BZ NORMA3		; yes - need to scroll up
+	ADI MAXROW\ STR T1	; no - add one to CURSY
+	LBR LDCURS		; update hardware cursor location
+
+NORMA3:	CALL(SCRUP)		; scroll screen up one line
+	LBR LDCURS		; update hardware cursor location
+
 
 	.SBTTL	Interpret Escape Sequences
 
@@ -2756,40 +2773,69 @@ LINAD1: SHL\ ADI LOW(LINTAB)	; index into the line address table
 ;++
 ;   This table is used to translate character row numbers into actual screen
 ; buffer addresses.  It is indexed by twice the row number (0, 2, 4, ... 48) and
-; contains the corresponding RAM address of that line. This address is stored in
-; two bytes, with the low order bits of the address being first.
+; contains the corresponding RAM address of that line.
 ;
-;   Needless to say, it should have at least MAXROW entries!  Note that some
-; display modes have as many as 26 displayed lines, so we need to go that far.
+;   This table is page aligned so that the LSB of the first entry starts the
+; page, this saves having to add one later. Also, the table repears twice
+; so that we can add TOPLIN and CURSY and use it directly as an index without
+; wrapping thr value around; the modulo operation is built into the table.
+;
+;   Needless to say, it should have at least MAXROW (times two) entries!
+; Note that some display modes have as many as 26 displayed lines.
 ;--
-LINTAB:	.WORD	SCREEN+( 0*MAXCOL)	; line #0
-	.WORD	SCREEN+( 1*MAXCOL)	; line #1
-	.WORD	SCREEN+( 2*MAXCOL)	; line #2
-	.WORD	SCREEN+( 3*MAXCOL)	; line #3
-	.WORD	SCREEN+( 4*MAXCOL)	; line #4
-	.WORD	SCREEN+( 5*MAXCOL)	; line #5
-	.WORD	SCREEN+( 6*MAXCOL)	; line #6
-	.WORD	SCREEN+( 7*MAXCOL)	; line #7
-	.WORD	SCREEN+( 8*MAXCOL)	; line #8
-	.WORD	SCREEN+( 9*MAXCOL)	; line #9
-	.WORD	SCREEN+(10*MAXCOL)	; line #10
-	.WORD	SCREEN+(11*MAXCOL)	; line #11
-	.WORD	SCREEN+(12*MAXCOL)	; line #12
-	.WORD	SCREEN+(13*MAXCOL)	; line #13
-	.WORD	SCREEN+(14*MAXCOL)	; line #14
-	.WORD	SCREEN+(15*MAXCOL)	; line #15
-	.WORD	SCREEN+(16*MAXCOL)	; line #16
-	.WORD	SCREEN+(17*MAXCOL)	; line #17
-	.WORD	SCREEN+(18*MAXCOL)	; line #18
-	.WORD	SCREEN+(19*MAXCOL)	; line #19
-	.WORD	SCREEN+(20*MAXCOL)	; line #20
-	.WORD	SCREEN+(21*MAXCOL)	; line #21
-	.WORD	SCREEN+(22*MAXCOL)	; line #22
-	.WORD	SCREEN+(23*MAXCOL)	; line #23
-	.WORD	SCREEN+(24*MAXCOL)	; line #24
-	.WORD	SCREEN+(25*MAXCOL)	; line #25
-	.WORD	SCREEN+(26*MAXCOL)	; line #26
-	.WORD	SCREEN+(27*MAXCOL)	; line #27
+	.ORG	($|$FF)
+LINTAB:	.WORD	SCREEN+(( 0%MAXROW)*MAXCOL)	; line #0
+	.WORD	SCREEN+(( 1%MAXROW)*MAXCOL)	; line #1
+	.WORD	SCREEN+(( 2%MAXROW)*MAXCOL)	; line #2
+	.WORD	SCREEN+(( 3%MAXROW)*MAXCOL)	; line #3
+	.WORD	SCREEN+(( 4%MAXROW)*MAXCOL)	; line #4
+	.WORD	SCREEN+(( 5%MAXROW)*MAXCOL)	; line #5
+	.WORD	SCREEN+(( 6%MAXROW)*MAXCOL)	; line #6
+	.WORD	SCREEN+(( 7%MAXROW)*MAXCOL)	; line #7
+	.WORD	SCREEN+(( 8%MAXROW)*MAXCOL)	; line #8
+	.WORD	SCREEN+(( 9%MAXROW)*MAXCOL)	; line #9
+	.WORD	SCREEN+((10%MAXROW)*MAXCOL)	; line #10
+	.WORD	SCREEN+((11%MAXROW)*MAXCOL)	; line #11
+	.WORD	SCREEN+((12%MAXROW)*MAXCOL)	; line #21
+	.WORD	SCREEN+((13%MAXROW)*MAXCOL)	; line #13
+	.WORD	SCREEN+((14%MAXROW)*MAXCOL)	; line #14
+	.WORD	SCREEN+((15%MAXROW)*MAXCOL)	; line #15
+	.WORD	SCREEN+((16%MAXROW)*MAXCOL)	; line #16
+	.WORD	SCREEN+((17%MAXROW)*MAXCOL)	; line #17
+	.WORD	SCREEN+((18%MAXROW)*MAXCOL)	; line #18
+	.WORD	SCREEN+((19%MAXROW)*MAXCOL)	; line #19
+	.WORD	SCREEN+((20%MAXROW)*MAXCOL)	; line #20
+	.WORD	SCREEN+((21%MAXROW)*MAXCOL)	; line #21
+	.WORD	SCREEN+((22%MAXROW)*MAXCOL)	; line #22
+	.WORD	SCREEN+((23%MAXROW)*MAXCOL)	; line #23
+	.WORD	SCREEN+((24%MAXROW)*MAXCOL)	; line #24
+	.WORD	SCREEN+((25%MAXROW)*MAXCOL)	; line #25
+	.WORD	SCREEN+((26%MAXROW)*MAXCOL)	; line #26
+	.WORD	SCREEN+((27%MAXROW)*MAXCOL)	; line #27
+	.WORD	SCREEN+((28%MAXROW)*MAXCOL)	; line #28
+	.WORD	SCREEN+((29%MAXROW)*MAXCOL)	; line #29
+	.WORD	SCREEN+((30%MAXROW)*MAXCOL)	; line #30
+	.WORD	SCREEN+((31%MAXROW)*MAXCOL)	; line #31
+	.WORD	SCREEN+((32%MAXROW)*MAXCOL)	; line #32
+	.WORD	SCREEN+((33%MAXROW)*MAXCOL)	; line #33
+	.WORD	SCREEN+((34%MAXROW)*MAXCOL)	; line #34
+	.WORD	SCREEN+((35%MAXROW)*MAXCOL)	; line #35
+	.WORD	SCREEN+((36%MAXROW)*MAXCOL)	; line #36
+	.WORD	SCREEN+((37%MAXROW)*MAXCOL)	; line #37
+	.WORD	SCREEN+((38%MAXROW)*MAXCOL)	; line #38
+	.WORD	SCREEN+((39%MAXROW)*MAXCOL)	; line #39
+	.WORD	SCREEN+((40%MAXROW)*MAXCOL)	; line #40
+	.WORD	SCREEN+((41%MAXROW)*MAXCOL)	; line #41
+	.WORD	SCREEN+((42%MAXROW)*MAXCOL)	; line #42
+	.WORD	SCREEN+((43%MAXROW)*MAXCOL)	; line #43
+	.WORD	SCREEN+((44%MAXROW)*MAXCOL)	; line #44
+	.WORD	SCREEN+((45%MAXROW)*MAXCOL)	; line #45
+	.WORD	SCREEN+((46%MAXROW)*MAXCOL)	; line #46
+	.WORD	SCREEN+((47%MAXROW)*MAXCOL)	; line #47
+	.WORD	SCREEN+((48%MAXROW)*MAXCOL)	; line #48
+	.WORD	SCREEN+((49%MAXROW)*MAXCOL)	; line #49
+	.WORD	SCREEN+((50%MAXROW)*MAXCOL)	; line #50
+	.WORD	SCREEN+((51%MAXROW)*MAXCOL)	; line #51
 
 	.SBTTL	Bell (^G) Function
 
