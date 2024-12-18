@@ -188,8 +188,13 @@
 ;	     normal (regular printable) character handling routine to speed
 ;	     up termianl output.
 ;
+; 040	-- Change LINTAB to LSB first to make arithmetic easier. Remove a
+;	     few cycles from EOF ISR. Don't update cursor location when it is
+;	     hidden anyway. Separate out core of VTPUTC so that terminal
+;	     can skip save and restore of registers.
+;
 ;--
-VEREDT	.EQU	39	; and the edit level
+VEREDT	.EQU	40	; and the edit level
 ;
 ; TODO list-
 ;   Drawing boxes and lines should be easier - maybe some kind of escape
