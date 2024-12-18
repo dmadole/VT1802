@@ -2725,28 +2725,20 @@ DOWN:	RLDI(T1,CURSY)		; get the row number where the cursor is
 ; to actually change the picture on the screen...  Uses (but doesn't save) T1!
 ;
 ;   If the HIDCURS flag is non-zero, then the cursor display is "hidden" and
-; you don't see a cursor on the screen.  The 8275 doesn't have a direct way
-; to turn the cursor on or off, but we can fake it out by loading the cursor
-; registers with a position that's off the screen.  In that case it'll never
-; be displayed.
+; you don't see a cursor on the screen.  The cursor has already been hidden
+; in this case by moving it to an off-screen address, we just need to not
+; reset it so it stays hidden.
 ;--
 LDCURS:	RLDI(T1,HIDCURS)\ LDN T1; is the cursor hidden ?
-	LBNZ	LDCUR1		; yes - do that
+	LBNZ LDCUR2		; yes -- nothing to do then
 
 ; Here to show the real cursor ...
-	LDI LOW(CURSX)\ PLO T1	; point to the cursor location
+LDCUR1:	LDI LOW(CURSX)\ PLO T1	; point to the cursor location
 	SEX PC\ OUT CRTCMD	; give the load cursor command
 	.BYTE CC.LCUR		; ...
 	SEX T1\ OUT CRTPRM	; and output X ...
-	OUT CRTPRM\ RETURN	; ... and then Y ... and return
-
-; Here to hide the cursor ...
-LDCUR1:	SEX PC\ OUT CRTCMD	; give the load cursor command
-	.BYTE CC.LCUR		; ...
-	OUT CRTPRM\ .BYTE 80 	; off-screen regardless of MAXCOL/MAXROW
-	OUT CRTPRM\ .BYTE 64	; ...
-	RETURN			; all is safe again
-
+	OUT CRTPRM		; ... and then Y
+LDCUR2:	RETURN			; ... and return
 
 ;++
 ;   This subroutine will compute the actual address of the character under the
@@ -2771,14 +2763,18 @@ CURRET:	RETURN			; leave the address in P1 and we're done...
 ; the blinking block disappear from the screen.
 ;
 ;   The i8275 doesn't actually have a way to hide or disable the display of
-; the cursor, so what we do here is to set the HIDCURS flag.  This makes
-; the LDCURS routine load a "fake" cursor position, which is actually off
-; screen, into the 8275.  This effectively prevents it from being displayed.
+; the cursor, so what we do here is set the cursor to a location that is off
+; of the screen, and set the HIDCURS flag so that LDCURS knows not to set the
+; location any more since that would unhide it.
 ;--
 DSACURS:RLDI(T1,HIDCURS)	; point to the cursor display flag
 	LDI $FF\ STR T1		; set to non-zero to hide the cursor
-	LBR	LDCURS		; and then update the screen
 
+	SEX PC\ OUT CRTCMD	; give the load cursor command
+	.BYTE CC.LCUR		; ...
+	OUT CRTPRM\ .BYTE 80 	; off-screen regardless of MAXCOL/MAXROW
+	OUT CRTPRM\ .BYTE 64	; ...
+	RETURN			; return
 
 ;++
 ;   The <ESC>d sequence will undo the effects of an <ESC>h and re-enable
@@ -2786,7 +2782,7 @@ DSACURS:RLDI(T1,HIDCURS)	; point to the cursor display flag
 ;--
 ENACURS:RLDI(T1,HIDCURS)	; ...
 	LDI $00\ STR T1		; set the HIDCURS flag to zero
-	LBR	LDCURS		; and display the cursor
+	LBR	LDCUR1		; and display the cursor
 
 	.SBTTL	Compute the Address of Any Line
 
