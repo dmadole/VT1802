@@ -2002,7 +2002,7 @@ NORMAL:	STR SP			; save the character for a minute
 
 ; Check the character set mode...
 	RLDI(T1,ACSMOD)		; point to character set mode flag
-	LDN T1\ BZ NORMA1	; get and branch if not ACS mode
+	LDA T1\ BZ NORMA1	; get and branch if not ACS mode
 	LDN SP\ SMI $60		; is this a lower case letter?
 	BL NORMA1\ STR SP 	; if yes shift it down to 0x00..0x1F
 
@@ -2010,7 +2010,7 @@ NORMAL:	STR SP			; save the character for a minute
 ;   BTW, don't be tempted to do an "ANI $7F" here, because WFAC uses this
 ; to write field attribute codes to the screen!
 
-NORMA1:	INC T1\ LDA T1\ SEX T1\	; point to TOPLIN and get it
+NORMA1:	LDA T1\ SEX T1		; point to TOPLIN and get it
 	INC T1\ ADD \ SHL	; point to CURSY and add then double
 	PLO T2			; index into line offset table
 	LDI HIGH(LINTAB+1)	; set the page of the table
@@ -2240,7 +2240,8 @@ WFAC:	LDI EANEXT\ LBR ESCNXT	; wait for the field attribute code
 WFAC1:	LDI 0\ CALL(ESCNXT)	; first, set ESCSTA to zero
  	RLDI(T1,CURCHR)\ LDN T1	; and then get the current character
 WFAC2:	ANI $3F\ ORI $80	; make it into a field attribute code
-	PUSHD			; save it on the stack for NORMA1
+	STR	SP		; save it on the stack for NORMA1
+	RLDI(T1,TOPLIN)		; point to top line of screen
 	LBR	NORMA1		; and then go store it in screen memory
 
 	.SBTTL	Write Line Drawing Code
@@ -2276,7 +2277,8 @@ WLINE1:	LDI 0\ CALL(ESCNXT)	; end of escape sequence
 	LBZ	WLINE2		;  ... just ignore them
 	LDN	T1		; ok - make it into a character attribute code
 	ANI $3F\ ORI CC.LINE	; ...
-	PUSHD			; save it on the stack for NORMA1
+	STR	SP		; save it on the stack for NORMA1
+	RLDI(T1,TOPLIN)		; point to top line of screen
 	LBR	NORMA1		; and then go store it in screen memory
 WLINE2:	RETURN			; just ignore illegal characters
 
@@ -5008,6 +5010,7 @@ XRDBK3:	IRX\ POPR(T3)		; restore all those registers
 ;--
 
 ; Standard subroutine call ... 18 bytes ...
+	.ORG	(($-1)|$FF)+1
 	SEP	PC		; start the subroutine running
 SCALL:	PHI	AUX		; save the D register
 	SEX	SP		; make sure the stack is selected
