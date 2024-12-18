@@ -3968,6 +3968,7 @@ ISR3:	BN_KEYIRQ ISRRET	; if not keyboard interrupt, then quit
 ;--
 EOFISR:	PUSHR(T1)		; save a temporary register
 	INP CRTSTS		; read the status register to clear the IRQ
+
 	RLDI(T1,TOPLIN)		; point to TOPLIN
 	LDN T1\ SHL\ PLO T1	; load the value of TOPLIN times two
 	LDI HIGH(LINTAB)\ PHI T1; set the high byte
@@ -3977,24 +3978,24 @@ EOFISR:	PUSHR(T1)		; save a temporary register
 ;   If the bell timer is non-zero, then the beeper is turned on and we should
 ; decrement TTIMER.  When TTIMER reaches zero, we turn off the speaker.  This
 ; is used to implement the ^G bell function of the VT52...
-	RLDI(T1,TTIMER)\ LDN T1	; get the current bell timer
-	LBZ	EOFIS1		; just return now if it's zero
+	LDI LOW(TTIMER)\ PLO T1 ; point to current bell timer
+	LDN T1\ BZ EOFIS1	; get and just return now if it's zero
 	SMI 1\ STR T1		; otherwise decrement it
-	LBNZ	EOFIS1		; just keep going until it reaches zero
+	BNZ EOFIS1		; just keep going until it reaches zero
 	SOUND_OFF		; turn the speaker off at zero
 
 ;   The UPTIME location keeps a 32 bit counter of the VRTC interrupts since
 ; the system was turned on.  This is used by BASIC to keep track of the time
 ; of day.  FWIW, a 32 bit counter incremented at 60Hz will take over 800 days
 ; to overflow!
-EOFIS1:	RLDI(T1,UPTIME)		; point to the system uptime counter
+EOFIS1:	LDI LOW(UPTIME)\ PLO T1	; point to the system uptime counter
 	LDN T1\ ADI 1\ STR T1	; and increment the LSB
-	LBNF EOFIS2\ INC T1	; quit if there's no carry 
-	LDN T1\ ADCI 0\ STR T1	; ... carry to the next byte
-	LBNF EOFIS2\ INC T1	; ... and quit if there's no carry 
-	LDN T1\ ADCI 0\ STR T1	; do the same thing for byte 3
-	LBNF EOFIS2\ INC T1	; ...
-	LDN T1\ ADCI 0\ STR T1	; and byte four
+	BNF EOFIS2\ INC T1	; quit if there's no carry 
+	LDN T1\ ADI 1\ STR T1	; ... carry to the next byte
+	BNF EOFIS2\ INC T1	; ... and quit if there's no carry 
+	LDN T1\ ADI 1\ STR T1	; do the same thing for byte 3
+	BNF EOFIS2\ INC T1	; ...
+	LDN T1\ ADI 1\ STR T1	; and byte four
 				; ... don't care about any carry now!
 
 ; Here to return from the frame interrupt...
