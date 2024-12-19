@@ -193,8 +193,13 @@
 ;	     hidden anyway. Separate out core of VTPUTC so that terminal
 ;	     can skip save and restore of registers.
 ;
+; 041	-- Don't check framing error on UART unless DA is set as it only
+;	     changes when a character is received. Cleanup VTPUTT a little.
+;	     Make ISR handle multiple events per invocation to reduce latency
+;	     and overhead when interrupts happen during interrupts.
+;
 ;--
-VEREDT	.EQU	40	; and the edit level
+VEREDT	.EQU	41	; and the edit level
 ;
 ; TODO list-
 ;   Drawing boxes and lines should be easier - maybe some kind of escape
