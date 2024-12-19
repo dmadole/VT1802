@@ -193,8 +193,13 @@
 ;	     hidden anyway. Separate out core of VTPUTC so that terminal
 ;	     can skip save and restore of registers.
 ;
+; 041	-- Don't check framing error on UART unless DA is set as it only
+;	     changes when a character is received. Cleanup VTPUTT a little.
+;	     Make ISR handle multiple events per invocation to reduce latency
+;	     and overhead when interrupts happen during interrupts.
+;
 ;--
-VEREDT	.EQU	40	; and the edit level
+VEREDT	.EQU	41	; and the edit level
 ;
 ; TODO list-
 ;   Drawing boxes and lines should be easier - maybe some kind of escape
@@ -1930,7 +1935,9 @@ BPTMSG:	.TEXT	"\r\nBREAK AT \000"
 ;   This is a wrapper around the VTPUTT routine to save the registers that
 ; BASIC or command mode may need preserved but that the terminal routine
 ; does not (which calls VTPUTT directly). This saves the overhead of the
-; save and restores where it is not needed.
+; save and restores where it is not needed. This also returns the character
+; originally passed to it and clears DF.
+
 VTPUTC:	PHI AUX\ SEX SP		; save character in a safe place
 	PUSHR(T1)		; save the registers that we use 
 	PUSHR(T2)		; ...
@@ -1942,9 +1949,9 @@ VTPUTC:	PHI AUX\ SEX SP		; save character in a safe place
  	RLDI(T1,CURCHR)		; gotta get back the original data
 	LDN T1\ PHI AUX		; save it for a moment
 	SEX SP\ IRX\ POPR(P1)	; restore the registers we saved
-	POPR(T2)		; ...
-	POPRL(T1)		; ...
-	CDF\ GHI AUX\ RETURN	; and we're done!
+	POPR(T2)\ POPRL(T1)		; ...
+	CDF\ GHI AUX
+VTPUT1:	RETURN			; and we're done!
 
 ;++
 ;   This routine is called whenever we want to send a character to the video
@@ -1954,39 +1961,31 @@ VTPUTC:	PHI AUX\ SEX SP		; save character in a safe place
 ; handle those as needed.  And lastly, if it's just a plain ordinary printing
 ; character then we branch off to NORMAL to handle the alternate character set
 ; and reverse video.
-;
-;   One note - this routine can be called directly from BASIC and as such it's
-; important that we preserve all registers used AND that we return the original
-; character in D.
 ;--
-VTPUTT:	PHI AUX			; save character in a safe place
+VTPUTT:	PHI AUX			; save character
 
-VTPUT6:	RLDI(T1,CURCHR)		; point to our local storage
+	RLDI(T1,CURCHR)		; point to our local storage
 	GHI AUX\ STR T1		; move the character to CURCHR
 
 	DEC T1\ LDN T1		; and then load ESCSTA
-	LBZ VTPUT3		; jump if we're processing an escape sequence
+	LBNZ VTPUT3		; jump if we're processing an escape sequence
 
-	SHL\ ADI LOW(ESTATE)
-	PLO T1\ LDI 0
-	ADCI HIGH(ESTATE)
-	PHI T1\ LBR LBRI2
+	GHI AUX\ ANI $7F	; get the character and trim to 7 bits
+	SMI $7F\ LBZ VTPUT1	; if it's a RUBOUT then do nothing
 
-VTPUT3:	GHI AUX\ ANI $7F	; trim to 7 bits
-	PHI AUX\ LBZ VTPUT5	;  ... and ignore null characters
-	XRI $7F\ LBZ VTPUT5	;  ... ignore RUBOUTs too
-	GHI AUX\ SMI ' '	; is this a control character ?
-	LBGE VTPUT4		; branch if yes
+	ADI $5F\ ADI $20	; if it is not a control character
+	LBNF NORMAL		; then print as normal character
 
-	GHI AUX			; restore the original character
-	SHL\ ADI LOW(CTLTAB)
-	PLO T1\ LDI 0
-	ADCI HIGH(CTLTAB)
-	PHI T1\ LBR LBRI2
+	SHL\ ADI LOW(CTLTAB)	; else double and add to CTLTAB table base
+	PLO T1\ LDI 0		; set pointer low byte
+	ADCI HIGH(CTLTAB)	; setup high byte of address
+	PHI T1\ LBR LBRI2	; call table dispatch
 
-VTPUT4:	GHI AUX\ LBR NORMAL	; display it as a normal character
+VTPUT3:	SHL\ ADI LOW(ESTATE)	; double it and add to ESTATE tables base
+	PLO T1\ LDI 0		; set pointer low byte
+	ADCI HIGH(ESTATE)	; setup high byte of address
+	PHI T1\ LBR LBRI2	; call table dispatch
 
-VTPUT5:	RETURN
 
 	.SBTTL	Write Normal Characters to the Screen
 
@@ -3901,17 +3900,43 @@ RSTIO1:	CALL(SIN)		; SW6=0 -> select serial port for input
 ; top.  This screen buffer wrap around is necessary for scrolling.
 ;--
 
+	PAGE	; start new page before ISRs to ensure short branch reach
+
 ;++
-;   Branch here to return from the current interrupt service routine.  Pop
-; T1, DF, D and lastly (X,P) off the stack, re-enable interrupts and we're
-; done!
+;   We are able to process multiple interrupt sources per interrupt, which
+; avoids overhead of saving and restoring registers when multiple interrupts
+; occur simultaneously, or more likely, when a second interruptable event
+; happens while we are already in an interrupt handler.
 ;
-;   Note that, unlike SAV, the RET instruction DOES increment X!
-;--
-ISRRET:	INC SP			; point SP back to the saved D register
-	LDA SP\ SHL		; restore DF
-	LDA SP			; restore D
-	RET			; and restore (X,P)
+;   When an interrupt service routine is finished, it branches back to here
+; where we test for additional interrupts. If one is present, we dispatch
+; immediately to a "quick" entry point which does not re-save the T1 register
+; since we have also not restored it yet. Only when there are no more sources
+; pending do we restore T1 and other other registers and return.
+;
+;   While it's not possible to test for an end-of-row interrupt on an initial
+; interrupt assertion, if one happens while we are already in the interrupt
+; service routine, then we can test with EF4, because an S3 cycle will not
+; have happened to acknowledge it yet. We can also quickly acknowledge the
+; interrupt and clear the hardware flip-flop by executing a RET instruction,
+; which will return from interupt and then immediately re-enter, triggering
+; an S3 cycle. No foreground instructions will execute in-between so we do
+; not need to save anything and in fact it's irrelevant what X,P we restore.
+
+ISRDON:	BN_ROWIRQ NOTEOR	; skip if no pending end-of-row interrupt
+	DEC SP\ RET		; else acknowledge end-of-row interrupt
+
+	GHI DMAPTR\ BNZ NOTEOR	; skip if DMA pointer has not overflowed
+	RLDI(DMAPTR,SCREEN)	; reset the DMA pointer back to the start
+
+NOTEOR:	B_CRTIRQ EOFISQ		; handle end of frame interrupts
+	B_SLUIRQ SLUISQ		; handle a serial port interrupts
+	B_KEYIRQ KEYISQ		; handle a keyboard interrupt
+
+	IRX\ POPRL(T1)		; restore T1
+
+ISRRET:	IRX\ LDXA\ SHLC		; restore DF
+	LDXA\ RET		; restore D then restore X,P to return
 
 ;++
 ;   Here's the interrupt service routine.  When we get here we can assume that
@@ -3922,7 +3947,7 @@ ISRRET:	INC SP			; point SP back to the saved D register
 ; anything on the stack to protect any temporary data that the background may
 ; have there.  
 ;
-;   Note that END OF ROW interrupts occur 24 times per frame, or about once
+;   Note that END OF ROW interrupts occur MAXROW times per frame, about once
 ; every 640 microseconds!  That's pretty often, especially for a slow witted 
 ; 1802, so the following ISR code is optimized for that case.  All the other
 ; interrupts are much less frequent and we can afford to be a bit more lazy
@@ -3949,199 +3974,16 @@ ISR:	DEC SP\ SAV		; push T (the saved X,P)
 ; The scrolling depends on this, and it's the reason why we need interrupts at
 ; the end of each row...
 ;--
-ROWEND:	GHI	DMAPTR		; get the high byte of the DMA pointer
-	BNZ	ISR1		; ...
+	GHI DMAPTR\ BNZ ISR1	; skip if DMA pointer has not overflowed
 	RLDI(DMAPTR,SCREEN)	; reset the DMA pointer back to the start
 
 ;   Now continue with interrupt processing by attempting to indentify the
 ; interrupt source.  If no other source can be found, then it must have
 ; been an END OF ROW interrupt and we can just dismiss it now.
-ISR1:	BN_CRTIRQ ISR2		; skip if not end of frame interrupt
-	LBR	EOFISR		;  ... handle end of frame interrupts
-ISR2:	BN_SLUIRQ ISR3		; skip if not a serial port interrupt
-	LBR	SLUISR		;  ... handle a serial port interrupts
-ISR3:	BN_KEYIRQ ISRRET	; if not keyboard interrupt, then quit
-	LBR	KEYISR		;  ... handle a keyboard interrupt
 
-	.SBTTL	End of Frame Interrupts
-
-;++
-;   Here for the end of frame interrupt.  In this case we need to reset the
-; DMA pointer back to the top of the "virtual" screen, based on TOPLIN.  And
-; since this ISR is called regularly at a known interval, we use it to time
-; several time dependent events.  First we increment the frame counter, which
-; is used by the background code to time various events.  Second, we decrement
-; the bell timer and, if it's zero, turn off the beeper.  The latter is used
-; by the ^G bell function.
-;--
-EOFISR:	PUSHR(T1)		; save a temporary register
-	INP CRTSTS		; read the status register to clear the IRQ
-
-	RLDI(T1,TOPLIN)		; point to TOPLIN
-	LDN T1\ SHL\ PLO T1	; load the value of TOPLIN times two
-	LDI HIGH(LINTAB)\ PHI T1; set the high byte
-	LDA T1\ PLO DMAPTR	; reset the DMA pointer
-	LDN T1\ PHI DMAPTR	;  ... to the top of the screen
-
-;   If the bell timer is non-zero, then the beeper is turned on and we should
-; decrement TTIMER.  When TTIMER reaches zero, we turn off the speaker.  This
-; is used to implement the ^G bell function of the VT52...
-	LDI LOW(TTIMER)\ PLO T1 ; point to current bell timer
-	LDN T1\ BZ EOFIS1	; get and just return now if it's zero
-	SMI 1\ STR T1		; otherwise decrement it
-	BNZ EOFIS1		; just keep going until it reaches zero
-	SOUND_OFF		; turn the speaker off at zero
-
-;   The UPTIME location keeps a 32 bit counter of the VRTC interrupts since
-; the system was turned on.  This is used by BASIC to keep track of the time
-; of day.  FWIW, a 32 bit counter incremented at 60Hz will take over 800 days
-; to overflow!
-EOFIS1:	LDI LOW(UPTIME)\ PLO T1	; point to the system uptime counter
-	LDN T1\ ADI 1\ STR T1	; and increment the LSB
-	BNF EOFIS2\ INC T1	; quit if there's no carry 
-	LDN T1\ ADI 1\ STR T1	; ... carry to the next byte
-	BNF EOFIS2\ INC T1	; ... and quit if there's no carry 
-	LDN T1\ ADI 1\ STR T1	; do the same thing for byte 3
-	BNF EOFIS2\ INC T1	; ...
-	LDN T1\ ADI 1\ STR T1	; and byte four
-				; ... don't care about any carry now!
-
-; Here to return from the frame interrupt...
-EOFIS2:	IRX\ POPRL(T1)		; restore T1
-	LBR	ISRRET		; and return
-
-	.SBTTL	Serial Port Interrupt Service
-
-;++
-;   This routine is called (via an LBR, not an actual subroutine CALL!) by the
-; main interrupt service routine when it detects that the CDP1854 UART is
-; requesting an interrupt.  We poll the SLU, figure out what it needs, and then
-; branch back to ISRRET to dismiss this interrupt.
-;
-;   REMEMBER!  This is an ISR, so a) we want to be reasonably fast, and b)
-; we have to be careful to save and restore anything we change.  When we get
-; here the main ISR has already saved D, DF (and X and P, of course), but
-; anything else we use we have to preserve.
-;--
-SLUISR:	PUSHR(T1)		; save a register to work with
-
-;   First, read the UART status register and see if the framing error (FE)
-; bit is set.  If it is, then set the SERBRK flag and ignore any data in the
-; receiver buffer (it's garbage anyway).  Note that we currently ignore the
-; parity error and overrun error bits - it's not clear what useful thing we
-; could do with these anyway.
-
-	INP SLUSTS\ ANI SL.FE	; framing error?
-	LBZ SLUIRX		; no - check for received data
-
-	RLDI(T1,SERBRK)		; point to the serial break flag
-	LDI $FF\ STR T1		; and set it to indicate a break received
-	LBR SLUIR6		; read and discard the received data
-
-;   See if the UART receiver needs service.  If there's a character waiting,
-; then add it to the RXBUF.  If the RXBUF is full, then we just discard the
-; character; there's not much else that we can do.  If the buffer is getting
-; full then assert flow control as appropriate, if enabled.
-
-SLUIRX:	INP SLUSTS\ ANI SL.DA	; is the DA bit set?
-	LBZ SLUIS1		; no - go check the transmitter
-
-	RLDI(T1,RXGETP)		; load the RXBUF PUT pointer
-	SEX T1\ LDXA\ SD	; get number of characters in buffer
-	LSDF\ ADI RXBUFSZ	; if negative, add buffer size to adjust
-
-	SMI RXBUFSZ-1		; is the buffer is already full
-	LBL SLUIR1		; no - check if flow control needed
-	SEX SP\ LBR SLUIR6	; yes - read the character but discard it
-
-SLUIR1:	ADI RXBUFSZ-RXSTOP	; is the buffer less than 2/3 full
-	LBL SLUIR5		; yes - just get input character
-
-	INC T1\ LDN T1		; get flow control option
-	LBZ SLUIR4		; if zero - no flow control needed
-	XRI $FF\ LBZ SLUIR2	; if ff - do XON/XOFF flow control
-
-; Here for CTS flow control ...
-	SEX INTPC\ OUT FLAGS	; clear CTS
-	.BYTE FL.CCTS		;  ...
-	SEX T1\ LBR SLUIR4	; and now check the transmitter next
-
-; Here for XON/XOFF flow control ...
-SLUIR2:	INC T1\ LDN T1		; read the TXONOF flag
-	BNZ SLUIR3		; if already set non-zero do nothing
-	LDI $FF\ STR T1		; set to $ff to trigger xoff transmit
-
-; Copy the character into the buffer
-SLUIR3: DEC T1			; backup to FLOCTL
-SLUIR4: DEC T1			; backup to RXPUTP
-SLUIR5:	LDN T1\ ADI 1		; get PUT pointer and increment
-	ANI RXBUFSZ-1\ STR T1	; modulo buffer size and update
-	ADI LOW(RXBUF)\ PLO T1	; and index into the buffer
-	LDI HIGH(RXBUF)\ PHI T1	; ...
-SLUIR6:	INP SLUBUF\ SEX SP	; read the character into buffer
-
-
-;   Before checking the transmitter, check if the DMA pointer has advanced
-; past the end of the screen while we were working, since the last check,
-; and reset the DMA pointer if needed.
-SLUIS1:	GHI	DMAPTR		; get the high byte of the DMA pointer
-	BNZ	SLUIS5		; ...
-	RLDI(DMAPTR,SCREEN)	; reset the DMA pointer back to the start
-
-;   And now see if the UART transmitter needs service.  If the holding register
-; is empty and there are more characters in the TXBUF, then transmit the next
-; one.  If the buffer is empty, then there's no need to do anything - just
-; reading the status will clear the CDP1854 interrupt request, and we can let
-; the transmitter go idle.
-SLUIS5:	INP SLUSTS\ ANI SL.THRE	; is the THRE bit set?
-	LBZ	SLUIS3		; no - go check something else
-	RLDI(T1,FLOCTL)\ LDN T1	; see if flow control is enabled
-	XRI $FF\ LBNZ SLUI10	; no - go check the transmit buffer
-	INC T1\ LDN T1		; read TXONOF - do we need to send XON or XOFF?
-	XRI $FF\ LBZ SLUIS6	; branch if we need to send XOFF
-	LDN T1\ XRI $01		; do we need to send XON ?
-	LBNZ	SLUI10		; no - go transmit something from TXBUF
-
-; Here if we need to transmit XON ...
-	SEX INTPC\ OUT SLUBUF	; transmit XON
-	 .BYTE	 CH.XON		;  ...
-	LDI 0\ STR T1		; clear TXONOF
-	LBR	SLUIS3		; and we're done for now
-
-; Here if we need to transmit XOFF ...
-SLUIS6:	SEX INTPC\ OUT SLUBUF	; here to transmit XOFF
-	 .BYTE	 CH.XOF		;  ...
-	LDI $FE\ STR T1		; set TXONOF to $FE to remember XOFF sent
-	LBR	SLUIS3		; and we're done for now
-
-; Transmit the next character from the TXBUF ...
-SLUI10:	RLDI(T1,TXGETP)\ LDA T1	; load the GET pointer
-	SEX T1\ XOR		; does GET == PUT?
-	LBZ	SLUIS2		; yes - buffer empty!
-	DEC T1\ LDN T1		; no - reload the GET pointer
-	ADI 1\ ANI TXBUFSZ-1	; increment it w/wrap around
-	STR	T1		; update the GET pointer
-	ADI LOW(TXBUF)\ PLO T1	; index into the TX buffer
-	LDI HIGH(TXBUF)\ PHI T1	; ...
-	OUT	SLUBUF		; transmit the character at M(T1)
-	LBR	SLUIS3		; and on to the next thing
-
-;   Here if the TXBUF is empty AND the THRE bit is set, and at this point we
-; need to clear the TR bit.  That alone doesn't do much, however the next
-; time we have something to transmit then SERPUT will set the TR bit and
-; that will cause another THRE interrupt to start the process again.
-SLUIS2:	RLDI(T1,SLUFMT)\ LDN T1	; get the current SLU format bits
-	STR SP\ SEX SP		; store it on the stack
-	OUT SLUCTL\ DEC SP	; and clear TR
-				; and fall into SLUIS3
-
-;   Here after we've checked both the receiver and transmitter.  The CDP1854
-; has other interrupt conditions (e.g. PSI or CTS), but we don't care about
-; any of those AND they're all cleared by reading the status register.
-; There's nothing more to do!
-SLUIS3:	SEX SP\ IRX		; ...
-	POPRL(T1)		; restore T1
-	LBR	ISRRET		; dismiss the interrupt and we're done
+ISR1:	B_CRTIRQ EOFISR		; handle end of frame interrupts
+	B_SLUIRQ SLUISR		; handle a serial port interrupts
+	BN_KEYIRQ ISRRET	; if not keyboard interrupt, then quit
 
 	.SBTTL	Keyboard Interrupt Service
 
@@ -4162,35 +4004,218 @@ KEYISR:	PUSHR(T1)		; save a register to work with
 ; request at the same time) and check for one of the "special" keys or codes,
 ; BREAK, MENU or VERSION.  If it's one of those then set the appropriate flag
 ; but otherwise drop the key code. 
-	RLDI(T1,KEYVER)		; just in case we get lucky :)
+KEYISQ:	RLDI(T1,KEYVER)		; just in case we get lucky :)
 	SEX SP\ INP KEYDATA	; read the keyboard port, key on the stack
 	ANI KEYVERS\ XRI KEYVERS; is this the firmware version?
-	LBZ	KEYIS4		; yes - go save that
+	BZ KEYIS4		; yes - go save that
 	LDI KEYBREAK\ SD	; is it the BREAK key?
-	LBZ	KEYIS3		; yes 
+	BZ KEYIS3		; yes 
 	LDI KEYMENU\ SD		; and check for the MENU key
-	LBZ	KEYIS2		; ...
+	BZ KEYIS2		; ...
 
 ; It's a normal key - just add it to the buffer (assuming there's room) ...
-	DEC	SP		; protect the keycode on the stack
+	DEC SP			; protect the keycode on the stack
 	RLDI(T1,KEYPUTP)\ LDN T1; load the KEYBUF PUT pointer
 	ADI 1\ ANI KEYBUFSZ-1	; try incrementing it (w/wrap around!)
-	STR	SP		; save that temporarily
+	STR SP			; save that temporarily
 	DEC T1\ LDA T1\ XOR	; would it equal the GET pointer?
-	LBZ	KEYIS1		; yes - buffer full; discard keystroke
+	BZ KEYIS1		; yes - buffer full; discard keystroke
 	LDA SP\ STR T1		; no - update the PUT pointer
 	ADI LOW(KEYBUF)\ PLO T1	; and index into the buffer
 	LDI HIGH(KEYBUF)\ PHI T1; ...
 	LDN SP\ STR T1\ SKP	; store the original key code and return
-KEYIS1:	INC SP\ LBR KEYIS5	; fix the stack and return
+KEYIS1:	INC SP\ BR KEYIS5	; fix the stack and return
 
 ;   Here if we receive a version number from the APU firmware, or if either
 ; the BREAK or MENU key is pressed ...
-KEYIS2:	INC	T1		; point to KEYMNU
-KEYIS3:	INC	T1		; point to KEYBRK
+KEYIS2:	INC T1			; point to KEYMNU
+KEYIS3:	INC T1			; point to KEYBRK
 KEYIS4:	LDN SP\ STR T1		; update the flag in RAM
-KEYIS5:	SEX SP\ IRX\ POPRL(T1)	; restore T1
-	LBR	ISRRET		; and we're done here
+KEYIS5:	SEX SP\ BR ISRDON	; and we're done here
+
+	.SBTTL	End of Frame Interrupts
+
+;++
+;   Here for the end of frame interrupt.  In this case we need to reset the
+; DMA pointer back to the top of the "virtual" screen, based on TOPLIN.  And
+; since this ISR is called regularly at a known interval, we use it to time
+; several time dependent events.  First we increment the frame counter, which
+; is used by the background code to time various events.  Second, we decrement
+; the bell timer and, if it's zero, turn off the beeper.  The latter is used
+; by the ^G bell function.
+;--
+EOFISR:	PUSHR(T1)		; save a temporary register
+EOFISQ:	INP CRTSTS		; read the status register to clear the IRQ
+
+	RLDI(T1,TOPLIN)		; point to TOPLIN
+	LDN T1\ SHL\ PLO T1	; load the value of TOPLIN times two
+	LDI HIGH(LINTAB)\ PHI T1; set the high byte
+	LDA T1\ PLO DMAPTR	; reset the DMA pointer
+	LDN T1\ PHI DMAPTR	;  ... to the top of the screen
+
+;   If the bell timer is non-zero, then the beeper is turned on and we should
+; decrement TTIMER.  When TTIMER reaches zero, we turn off the speaker.  This
+; is used to implement the ^G bell function of the VT52...
+	RLDI(T1,TTIMER)\ PLO T1 ; point to current bell timer
+	LDN T1\ BZ EOFIS1	; get and just return now if it's zero
+	SMI 1\ STR T1		; otherwise decrement it
+	BNZ EOFIS1		; just keep going until it reaches zero
+	SOUND_OFF		; turn the speaker off at zero
+
+;   The UPTIME location keeps a 32 bit counter of the VRTC interrupts since
+; the system was turned on.  This is used by BASIC to keep track of the time
+; of day.  FWIW, a 32 bit counter incremented at 60Hz will take over 800 days
+; to overflow!
+EOFIS1:	LDI LOW(UPTIME)\ PLO T1	; point to the system uptime counter
+	LDN T1\ ADI 1\ STR T1	; and increment the LSB
+	BNF EOFIS2\ INC T1	; quit if there's no carry 
+	LDN T1\ ADI 1\ STR T1	; ... carry to the next byte
+	BNF EOFIS2\ INC T1	; ... and quit if there's no carry 
+	LDN T1\ ADI 1\ STR T1	; do the same thing for byte 3
+	BNF EOFIS2\ INC T1	; ...
+	LDN T1\ ADI 1\ STR T1	; and byte four
+				; ... don't care about any carry now!
+
+; Here to return from the frame interrupt...
+EOFIS2:	BR ISRDON		; and return
+
+	.SBTTL	Serial Port Interrupt Service
+
+;++
+;   This routine is called (via an LBR, not an actual subroutine CALL!) by the
+; main interrupt service routine when it detects that the CDP1854 UART is
+; requesting an interrupt.  We poll the SLU, figure out what it needs, and then
+; branch back to ISRRET to dismiss this interrupt.
+;
+;   REMEMBER!  This is an ISR, so a) we want to be reasonably fast, and b)
+; we have to be careful to save and restore anything we change.  When we get
+; here the main ISR has already saved D, DF (and X and P, of course), but
+; anything else we use we have to preserve.
+;--
+SLUISR:	PUSHR(T1)		 ; save a register to work with
+
+;   First, read the UART status register and see if the data available (DA)
+; bit is set. If it is, then a new received character has been loaded into
+; the holding register. But before reading the character, see if the framing
+; error (FE) bit is set.  If it is, then set the SERBRK flag and ignore the
+; data in the receiver buffer (it's garbage anyway).  Note that we currently
+; ignore the parity error and overrun error bits - it's not clear what useful
+; thing we could do with these anyway.
+
+SLUISQ:	INP SLUSTS\ SHR		; is the DA bit set? (SHR because SL.DA=1)
+	LBNF SLUIS5		; no - go check the transmitter
+
+	ANI (SL.FE>>1)		; framing error? (>>1 because of SHR above)
+	BZ SLUIRX		; no - check for received data
+
+	RLDI(T1,SERBRK)		; point to the serial break flag
+	LDI $FF\ STR T1		; and set it to indicate a break received
+	LBR SLUIR6		; read and discard the received data
+
+;   See if the UART receiver needs service.  If there's a character waiting,
+; then add it to the RXBUF.  If the RXBUF is full, then we just discard the
+; character; there's not much else that we can do.  If the buffer is getting
+; full then assert flow control as appropriate, if enabled.
+
+SLUIRX:	RLDI(T1,RXGETP)		; load the RXBUF PUT pointer
+	SEX T1\ LDXA\ SD	; get number of characters in buffer
+	LSDF\ ADI RXBUFSZ	; if negative, add buffer size to adjust
+
+	SMI RXBUFSZ-1		; is the buffer is already full
+	BL SLUIR1		; no - check if flow control needed
+	SEX SP\ LBR SLUIR6	; yes - read the character but discard it
+
+SLUIR1:	ADI RXBUFSZ-RXSTOP	; is the buffer less than 2/3 full
+	LBL SLUIR5		; yes - just get input character
+
+	INC T1\ LDN T1		; get flow control option
+	LBZ SLUIR4		; if zero - no flow control needed
+	XRI $FF\ BZ SLUIR2	; if ff - do XON/XOFF flow control
+
+; Here for CTS flow control ...
+	SEX INTPC\ OUT FLAGS	; clear CTS
+	.BYTE FL.CCTS		;  ...
+	SEX T1\ LBR SLUIR4	; and now check the transmitter next
+
+; Here for XON/XOFF flow control ...
+SLUIR2:	INC T1\ LDN T1		; read the TXONOF flag
+	LBNZ SLUIR3		; if already set non-zero do nothing
+	LDI $FF\ STR T1		; set to $ff to trigger xoff transmit
+
+; Copy the character into the buffer
+SLUIR3: DEC T1			; backup to FLOCTL
+SLUIR4: DEC T1			; backup to RXPUTP
+SLUIR5:	LDN T1\ ADI 1		; get PUT pointer and increment
+	ANI RXBUFSZ-1\ STR T1	; modulo buffer size and update
+	ADI LOW(RXBUF)\ PLO T1	; and index into the buffer
+	LDI HIGH(RXBUF)\ PHI T1	; ...
+SLUIR6:	INP SLUBUF\ SEX SP	; read the character into buffer
+
+;   Before checking the transmitter, check if an end-of-row event has occured
+; since this interrupt service started. If so, check the DMA pointer for
+; overflow and reset if needed. We also acknowledge the end-of-row event
+; so that we don't find it again unnecessarily at ISRDON, see the comments
+; there around the details of this.
+
+	BN_ROWIRQ SLUIS5	; skip if no pending end-of-row interrupt
+	DEC SP\ RET		; else acknowledge end-of-row interrupt
+
+	GHI DMAPTR\ BNZ SLUIS5	; skip if DMA pointer has not overflowed
+	RLDI(DMAPTR,SCREEN)	; reset the DMA pointer back to the start
+
+;   And now see if the UART transmitter needs service.  If the holding register
+; is empty and there are more characters in the TXBUF, then transmit the next
+; one.  If the buffer is empty, then there's no need to do anything - just
+; reading the status will clear the CDP1854 interrupt request, and we can let
+; the transmitter go idle.
+
+SLUIS5:	INP SLUSTS\ ANI SL.THRE	; is the THRE bit set?
+	BZ	SLUIS3		; no - go check something else
+	RLDI(T1,FLOCTL)\ LDN T1	; see if flow control is enabled
+	XRI $FF\ BNZ SLUI10	; no - go check the transmit buffer
+	INC T1\ LDN T1		; read TXONOF - do we need to send XON or XOFF?
+	XRI $FF\ BZ SLUIS6	; branch if we need to send XOFF
+	LDN T1\ XRI $01		; do we need to send XON ?
+	BNZ	SLUI10		; no - go transmit something from TXBUF
+
+; Here if we need to transmit XON ...
+	SEX INTPC\ OUT SLUBUF	; transmit XON
+	 .BYTE	 CH.XON		;  ...
+	LDI 0\ STR T1		; clear TXONOF
+	BR	SLUIS3		; and we're done for now
+
+; Here if we need to transmit XOFF ...
+SLUIS6:	SEX INTPC\ OUT SLUBUF	; here to transmit XOFF
+	 .BYTE	 CH.XOF		;  ...
+	LDI $FE\ STR T1		; set TXONOF to $FE to remember XOFF sent
+	BR	SLUIS3		; and we're done for now
+
+; Transmit the next character from the TXBUF ...
+SLUI10:	RLDI(T1,TXGETP)\ LDA T1	; load the GET pointer
+	SEX T1\ XOR		; does GET == PUT?
+	BZ	SLUIS2		; yes - buffer empty!
+	DEC T1\ LDN T1		; no - reload the GET pointer
+	ADI 1\ ANI TXBUFSZ-1	; increment it w/wrap around
+	STR	T1		; update the GET pointer
+	ADI LOW(TXBUF)\ PLO T1	; index into the TX buffer
+	LDI HIGH(TXBUF)\ PHI T1	; ...
+	OUT	SLUBUF		; transmit the character at M(T1)
+	BR	SLUIS3		; and on to the next thing
+
+;   Here if the TXBUF is empty AND the THRE bit is set, and at this point we
+; need to clear the TR bit.  That alone doesn't do much, however the next
+; time we have something to transmit then SERPUT will set the TR bit and
+; that will cause another THRE interrupt to start the process again.
+SLUIS2:	RLDI(T1,SLUFMT)\ LDN T1	; get the current SLU format bits
+	STR SP\ SEX SP		; store it on the stack
+	OUT SLUCTL\ DEC SP	; and clear TR
+				; and fall into SLUIS3
+
+;   Here after we've checked both the receiver and transmitter.  The CDP1854
+; has other interrupt conditions (e.g. PSI or CTS), but we don't care about
+; any of those AND they're all cleared by reading the status register.
+; There's nothing more to do!
+SLUIS3:	SEX SP\ LBR ISRDON	; dismiss the interrupt and we're done
 
 	.SBTTL	Serial Port Buffer Routines
 
