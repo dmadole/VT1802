@@ -188,8 +188,13 @@
 ;	     normal (regular printable) character handling routine to speed
 ;	     up termianl output.
 ;
+; 040	-- Change LINTAB to LSB first to make arithmetic easier. Remove a
+;	     few cycles from EOF ISR. Don't update cursor location when it is
+;	     hidden anyway. Separate out core of VTPUTC so that terminal
+;	     can skip save and restore of registers.
+;
 ;--
-VEREDT	.EQU	39	; and the edit level
+VEREDT	.EQU	40	; and the edit level
 ;
 ; TODO list-
 ;   Drawing boxes and lines should be easier - maybe some kind of escape
@@ -1548,7 +1553,7 @@ TERM:	RLDI(T1,KEYBRK)\ SEX T1	; clear both the KEYMNU and KEYBRK flags
 	RLDI(T1,SERBRK)		; and clear the serial break flag too
 	LDI 0\ STR T1		; ...
 
-TERM1:	LDI LOW(KEYMNU)\ PLO T1 ; was the menu key pressed ?
+TERM1:	RLDI(T1,KEYMNU)		; was the menu key pressed ?
 	LDN T1\ LBZ TERM2	; no - go check for serial break
 	LDI 0\ STR T1		; yes - clear the menu key flag
 	OUTSTR(TEMSG)		; print a message
@@ -1565,15 +1570,15 @@ TERM3:	LDI LOW(KEYBRK)\ PLO T1	; was the BREAK key pressed ?
 
 TERM4:	CALL(SERGET)		; anything in the buffer
 	LBDF TERM5		; no - check the PS/2 keyboard
-	CALL(VTPUTC)		; yes - send this character to the screen
+	CALL(VTPUTT)		; yes - send this character to the screen
 
 	CALL(SERGET)		; anything in the buffer
 	LBDF TERM5		; no - check the PS/2 keyboard
-	CALL(VTPUTC)		; yes - send this character to the screen
+	CALL(VTPUTT)		; yes - send this character to the screen
 
 	CALL(SERGET)		; anything in the buffer
 	LBDF TERM5		; no - check the PS/2 keyboard
-	CALL(VTPUTC)		; yes - send this character to the screen
+	CALL(VTPUTT)		; yes - send this character to the screen
 
 TERM5:	CALL(GETKEY)		; anything waiting from the keyboard?
 	LBDF TERM1		; no - back to checking the serial port
@@ -1921,6 +1926,25 @@ SHORE2:	OUTCHR('R')		; type "Rn="
 BPTMSG:	.TEXT	"\r\nBREAK AT \000"
 
 	.SBTTL	Output Characters to the Screen
+;++
+;   This is a wrapper around the VTPUTT routine to save the registers that
+; BASIC or command mode may need preserved but that the terminal routine
+; does not (which calls VTPUTT directly). This saves the overhead of the
+; save and restores where it is not needed.
+VTPUTC:	PHI AUX\ SEX SP		; save character in a safe place
+	PUSHR(T1)		; save the registers that we use 
+	PUSHR(T2)		; ...
+	PUSHR(P1)		; ...
+
+	GHI AUX
+	CALL(VTPUTT)
+
+ 	RLDI(T1,CURCHR)		; gotta get back the original data
+	LDN T1\ PHI AUX		; save it for a moment
+	SEX SP\ IRX\ POPR(P1)	; restore the registers we saved
+	POPR(T2)		; ...
+	POPRL(T1)		; ...
+	CDF\ GHI AUX\ RETURN	; and we're done!
 
 ;++
 ;   This routine is called whenever we want to send a character to the video
@@ -1935,47 +1959,34 @@ BPTMSG:	.TEXT	"\r\nBREAK AT \000"
 ; important that we preserve all registers used AND that we return the original
 ; character in D.
 ;--
-VTPUTC:	PHI AUX\ SEX SP		; save character in a safe place
-	PUSHR(T1)		; save the registers that we use 
-	PUSHR(T2)		; ...
-	PUSHR(P1)		; ...
-	RLDI(T1,CURCHR)\ SEX T1	; point to our local storage
-	GHI AUX\ STXD		; move the character to CURCHR
-	LDXA			; and then load ESCSTA
-	LBNZ	VTPUT2		; jump if we're processing an escape sequence
+VTPUTT:	PHI AUX			; save character in a safe place
 
-; This character is not part of an escape sequence...
-	GHI AUX\ ANI $7F	; trim to 7 bits
-	PHI AUX\ LBZ VTPUT9	;  ... and ignore null characters
-	XRI $7F\ LBZ VTPUT9	;  ... ignore RUBOUTs too
+VTPUT6:	RLDI(T1,CURCHR)		; point to our local storage
+	GHI AUX\ STR T1		; move the character to CURCHR
+
+	DEC T1\ LDN T1		; and then load ESCSTA
+	LBZ VTPUT3		; jump if we're processing an escape sequence
+
+	SHL\ ADI LOW(ESTATE)
+	PLO T1\ LDI 0
+	ADCI HIGH(ESTATE)
+	PHI T1\ LBR LBRI2
+
+VTPUT3:	GHI AUX\ ANI $7F	; trim to 7 bits
+	PHI AUX\ LBZ VTPUT5	;  ... and ignore null characters
+	XRI $7F\ LBZ VTPUT5	;  ... ignore RUBOUTs too
 	GHI AUX\ SMI ' '	; is this a control character ?
-	LBL	VTPUT1		; branch if yes
+	LBGE VTPUT4		; branch if yes
 
-; This character is a normal, printing, character...
-	GHI AUX\ CALL(NORMAL)	; display it as a normal character
+	GHI AUX			; restore the original character
+	SHL\ ADI LOW(CTLTAB)
+	PLO T1\ LDI 0
+	ADCI HIGH(CTLTAB)
+	PHI T1\ LBR LBRI2
 
-;   And return...  It's a bit of extra work, but it's really important that
-; we return the same value in D that we were originally called with.  Some
-; code depends on this!
-VTPUT9:	RLDI(T1,CURCHR)		; gotta get back the original data
-	LDN T1\ PHI AUX		; save it for a moment
-	SEX SP\ IRX\ POPR(P1)	; restore the registers we saved
-	POPR(T2)		; ...
-	POPRL(T1)		; ...
-;  It's critical the we return with DF=0 for compatibility with SERPUT.  If
-; we don't we risk CONPUT calling us multiple times for the same character!
-	CDF\ GHI AUX\ RETURN	; and we're done!
+VTPUT4:	GHI AUX\ LBR NORMAL	; display it as a normal character
 
-; Here if this character is a control character...
-VTPUT1:	GHI	AUX		; restore the original character
-	CALL(LBRI)		; and dispatch to the correct routine
-	 .WORD	 CTLTAB		; ...
-	LBR	VTPUT9		; then return normally
-
-; Here if this character is part of an escape sequence...
-VTPUT2:	CALL(LBRI)		; branch to the next state in escape processing
-	 .WORD	 ESTATE		; table of escape states
-	LBR	VTPUT9		; and return
+VTPUT5:	RETURN
 
 	.SBTTL	Write Normal Characters to the Screen
 
@@ -2010,16 +2021,13 @@ NORMAL:	STR SP			; save the character for a minute
 ;   BTW, don't be tempted to do an "ANI $7F" here, because WFAC uses this
 ; to write field attribute codes to the screen!
 
-NORMA1:	LDA T1\ SEX T1		; point to TOPLIN and get it
-	INC T1\ ADD \ SHL	; point to CURSY and add then double
-	PLO T2			; index into line offset table
-	LDI HIGH(LINTAB+1)	; set the page of the table
-	PHI T2			; ...
+NORMA1:	LDA T1\ SEX T1\ INC T1	; point to TOPLIN and get it, move to CURSY
+	ADD\ SHL\ PLO T2	; add CURSY then double and set index lsb
+	LDI HIGH(LINTAB)\ PHI T2; set the page of the table index
 
 	DEC T1			; point to CURSX
-	LDN T2\ ADD\ PLO P1	; add low byte of address
-	DEC T2			; point to high byte of address
-	LDN T2\ ADCI 0\ PHI P1	; get and add any carry into it
+	LDA T2\ ADD\ PLO P1	; add low byte of address
+	LDN T2\ ADCI 0\ PHI P1	; get high byte and add any carry into it
 
 	LDN SP\ STR P1		; get character and put on screen
 
@@ -2356,7 +2364,8 @@ LBRI:	SHL\ STR SP		; multiply the jump index by 2
 	LDA A\ PHI T1		; get the high byte of the table address
 	LDA A\ ADD\ PLO T1	; add the index to the table address
 	GHI T1\ ADCI 0\ PHI T1	; then propagate the carry bit
-	RLDI(T2,LBRI1)\ SEP T2	; then switch the PC to T2
+
+LBRI2:	RLDI(T2,LBRI1)\ SEP T2	; then switch the PC to T2
 
 ; Load the address pointed to by T1 into the PC and continue
 LBRI1:	LDA T1\ PHI PC		; get the high byte of the address
@@ -2728,28 +2737,20 @@ DOWN:	RLDI(T1,CURSY)		; get the row number where the cursor is
 ; to actually change the picture on the screen...  Uses (but doesn't save) T1!
 ;
 ;   If the HIDCURS flag is non-zero, then the cursor display is "hidden" and
-; you don't see a cursor on the screen.  The 8275 doesn't have a direct way
-; to turn the cursor on or off, but we can fake it out by loading the cursor
-; registers with a position that's off the screen.  In that case it'll never
-; be displayed.
+; you don't see a cursor on the screen.  The cursor has already been hidden
+; in this case by moving it to an off-screen address, we just need to not
+; reset it so it stays hidden.
 ;--
 LDCURS:	RLDI(T1,HIDCURS)\ LDN T1; is the cursor hidden ?
-	LBNZ	LDCUR1		; yes - do that
+	LBNZ LDCUR2		; yes -- nothing to do then
 
 ; Here to show the real cursor ...
-	LDI LOW(CURSX)\ PLO T1	; point to the cursor location
+LDCUR1:	LDI LOW(CURSX)\ PLO T1	; point to the cursor location
 	SEX PC\ OUT CRTCMD	; give the load cursor command
 	.BYTE CC.LCUR		; ...
 	SEX T1\ OUT CRTPRM	; and output X ...
-	OUT CRTPRM\ RETURN	; ... and then Y ... and return
-
-; Here to hide the cursor ...
-LDCUR1:	SEX PC\ OUT CRTCMD	; give the load cursor command
-	.BYTE CC.LCUR		; ...
-	OUT CRTPRM\ .BYTE 80 	; off-screen regardless of MAXCOL/MAXROW
-	OUT CRTPRM\ .BYTE 64	; ...
-	RETURN			; all is safe again
-
+	OUT CRTPRM		; ... and then Y
+LDCUR2:	RETURN			; ... and return
 
 ;++
 ;   This subroutine will compute the actual address of the character under the
@@ -2774,14 +2775,18 @@ CURRET:	RETURN			; leave the address in P1 and we're done...
 ; the blinking block disappear from the screen.
 ;
 ;   The i8275 doesn't actually have a way to hide or disable the display of
-; the cursor, so what we do here is to set the HIDCURS flag.  This makes
-; the LDCURS routine load a "fake" cursor position, which is actually off
-; screen, into the 8275.  This effectively prevents it from being displayed.
+; the cursor, so what we do here is set the cursor to a location that is off
+; of the screen, and set the HIDCURS flag so that LDCURS knows not to set the
+; location any more since that would unhide it.
 ;--
 DSACURS:RLDI(T1,HIDCURS)	; point to the cursor display flag
 	LDI $FF\ STR T1		; set to non-zero to hide the cursor
-	LBR	LDCURS		; and then update the screen
 
+	SEX PC\ OUT CRTCMD	; give the load cursor command
+	.BYTE CC.LCUR		; ...
+	OUT CRTPRM\ .BYTE 80 	; off-screen regardless of MAXCOL/MAXROW
+	OUT CRTPRM\ .BYTE 64	; ...
+	RETURN			; return
 
 ;++
 ;   The <ESC>d sequence will undo the effects of an <ESC>h and re-enable
@@ -2789,7 +2794,7 @@ DSACURS:RLDI(T1,HIDCURS)	; point to the cursor display flag
 ;--
 ENACURS:RLDI(T1,HIDCURS)	; ...
 	LDI $00\ STR T1		; set the HIDCURS flag to zero
-	LBR	LDCURS		; and display the cursor
+	LBR	LDCUR1		; and display the cursor
 
 	.SBTTL	Compute the Address of Any Line
 
@@ -2799,30 +2804,28 @@ ENACURS:RLDI(T1,HIDCURS)	; ...
 ; be passed in the D and the resulting address is returned in P1...  Uses
 ; (but doesn't save!) T1...
 ;--
-LINADD:	SMI	MAXROW		; if the line number is off the screen
-	LBDF	LINADD		; reduce it modulo MAXROW
-	ADI	MAXROW		; until it's on the screen
-LINAD1: SHL\ ADI LOW(LINTAB)	; index into the line address table
-	PLO T1\ LDI HIGH(LINTAB); now do the high byte
-	ADCI 0\ PHI T1		; ...
-	LDA T1\ PHI P1		; that's the line address
-	LDN T1\ PLO P1		; ...
+LINADD: SHL\ PLO T1		; index into the line address table
+	LDI HIGH(LINTAB)\ PHI T1; now set the high byte
+	LDA T1\ PLO P1		; that's the line address
+	LDN T1\ PHI P1		; ...
 	RETURN			; and then that's all there is to do
 
 ;++
 ;   This table is used to translate character row numbers into actual screen
 ; buffer addresses.  It is indexed by twice the row number (0, 2, 4, ... 48) and
-; contains the corresponding RAM address of that line.
+; contains the corresponding RAM address of that line, least significant byte
+; first, as this aids with arithmetic as we can do LSB first with LDA.
 ;
 ;   This table is page aligned so that the LSB of the first entry starts the
 ; page, this saves having to add one later. Also, the table repears twice
 ; so that we can add TOPLIN and CURSY and use it directly as an index without
-; wrapping thr value around; the modulo operation is built into the table.
+; wrapping the value around; the modulo operation is built into the table.
 ;
 ;   Needless to say, it should have at least MAXROW (times two) entries!
 ; Note that some display modes have as many as 26 displayed lines.
 ;--
-	.ORG	($|$FF)
+	.ORG	(($-1)|$FF)+1
+	.LSFIRST				; set to lsb first
 LINTAB:	.WORD	SCREEN+(( 0%MAXROW)*MAXCOL)	; line #0
 	.WORD	SCREEN+(( 1%MAXROW)*MAXCOL)	; line #1
 	.WORD	SCREEN+(( 2%MAXROW)*MAXCOL)	; line #2
@@ -2875,6 +2878,7 @@ LINTAB:	.WORD	SCREEN+(( 0%MAXROW)*MAXCOL)	; line #0
 	.WORD	SCREEN+((49%MAXROW)*MAXCOL)	; line #49
 	.WORD	SCREEN+((50%MAXROW)*MAXCOL)	; line #50
 	.WORD	SCREEN+((51%MAXROW)*MAXCOL)	; line #51
+	.MSFIRST				; back to msb first
 
 	.SBTTL	Bell (^G) Function
 
@@ -3971,36 +3975,35 @@ ISR3:	BN_KEYIRQ ISRRET	; if not keyboard interrupt, then quit
 ; by the ^G bell function.
 ;--
 EOFISR:	PUSHR(T1)		; save a temporary register
-	INP	CRTSTS		; read the status register to clear the IRQ
+	INP CRTSTS		; read the status register to clear the IRQ
+
 	RLDI(T1,TOPLIN)		; point to TOPLIN
-	LDN T1\ SHL		; load the value of TOPLIN times two
-	ADI LOW(LINTAB)\ PLO T1	; index into the line pointer table
-	LDI HIGH(LINTAB)	; compute the high byte
-	ADCI 0\ PHI T1		;   ... with carry
-	LDA T1\ PHI DMAPTR	; reset the DMA pointer
-	LDN T1\ PLO DMAPTR	;  ... to the top of the screen
+	LDN T1\ SHL\ PLO T1	; load the value of TOPLIN times two
+	LDI HIGH(LINTAB)\ PHI T1; set the high byte
+	LDA T1\ PLO DMAPTR	; reset the DMA pointer
+	LDN T1\ PHI DMAPTR	;  ... to the top of the screen
 
 ;   If the bell timer is non-zero, then the beeper is turned on and we should
 ; decrement TTIMER.  When TTIMER reaches zero, we turn off the speaker.  This
 ; is used to implement the ^G bell function of the VT52...
-	RLDI(T1,TTIMER)\ LDN T1	; get the current bell timer
-	LBZ	EOFIS1		; just return now if it's zero
+	LDI LOW(TTIMER)\ PLO T1 ; point to current bell timer
+	LDN T1\ BZ EOFIS1	; get and just return now if it's zero
 	SMI 1\ STR T1		; otherwise decrement it
-	LBNZ	EOFIS1		; just keep going until it reaches zero
+	BNZ EOFIS1		; just keep going until it reaches zero
 	SOUND_OFF		; turn the speaker off at zero
 
 ;   The UPTIME location keeps a 32 bit counter of the VRTC interrupts since
 ; the system was turned on.  This is used by BASIC to keep track of the time
 ; of day.  FWIW, a 32 bit counter incremented at 60Hz will take over 800 days
 ; to overflow!
-EOFIS1:	RLDI(T1,UPTIME)		; point to the system uptime counter
+EOFIS1:	LDI LOW(UPTIME)\ PLO T1	; point to the system uptime counter
 	LDN T1\ ADI 1\ STR T1	; and increment the LSB
-	LBNF EOFIS2\ INC T1	; quit if there's no carry 
-	LDN T1\ ADCI 0\ STR T1	; ... carry to the next byte
-	LBNF EOFIS2\ INC T1	; ... and quit if there's no carry 
-	LDN T1\ ADCI 0\ STR T1	; do the same thing for byte 3
-	LBNF EOFIS2\ INC T1	; ...
-	LDN T1\ ADCI 0\ STR T1	; and byte four
+	BNF EOFIS2\ INC T1	; quit if there's no carry 
+	LDN T1\ ADI 1\ STR T1	; ... carry to the next byte
+	BNF EOFIS2\ INC T1	; ... and quit if there's no carry 
+	LDN T1\ ADI 1\ STR T1	; do the same thing for byte 3
+	BNF EOFIS2\ INC T1	; ...
+	LDN T1\ ADI 1\ STR T1	; and byte four
 				; ... don't care about any carry now!
 
 ; Here to return from the frame interrupt...
