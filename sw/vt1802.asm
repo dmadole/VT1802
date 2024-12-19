@@ -4017,15 +4017,20 @@ EOFIS2:	IRX\ POPRL(T1)		; restore T1
 ; here the main ISR has already saved D, DF (and X and P, of course), but
 ; anything else we use we have to preserve.
 ;--
-SLUISR:	PUSHR(T1)		; save a register to work with
+SLUISR:	PUSHR(T1)		 ; save a register to work with
 
-;   First, read the UART status register and see if the framing error (FE)
-; bit is set.  If it is, then set the SERBRK flag and ignore any data in the
-; receiver buffer (it's garbage anyway).  Note that we currently ignore the
-; parity error and overrun error bits - it's not clear what useful thing we
-; could do with these anyway.
+;   First, read the UART status register and see if the data available (DA)
+; bit is set. If it is, then a new received character has been loaded into
+; the holding register. But before reading the character, see if the framing
+; error (FE) bit is set.  If it is, then set the SERBRK flag and ignore the
+; data in the receiver buffer (it's garbage anyway).  Note that we currently
+; ignore the parity error and overrun error bits - it's not clear what useful
+; thing we could do with these anyway.
 
-	INP SLUSTS\ ANI SL.FE	; framing error?
+	INP SLUSTS\ SHR		; is the DA bit set? (SHR because SL.DA=1)
+	LBNF SLUIS5		; no - go check the transmitter
+
+	ANI (SL.FE>>1)		; framing error? (>>1 because of SHR above)
 	LBZ SLUIRX		; no - check for received data
 
 	RLDI(T1,SERBRK)		; point to the serial break flag
@@ -4037,10 +4042,7 @@ SLUISR:	PUSHR(T1)		; save a register to work with
 ; character; there's not much else that we can do.  If the buffer is getting
 ; full then assert flow control as appropriate, if enabled.
 
-SLUIRX:	INP SLUSTS\ ANI SL.DA	; is the DA bit set?
-	LBZ SLUIS1		; no - go check the transmitter
-
-	RLDI(T1,RXGETP)		; load the RXBUF PUT pointer
+SLUIRX:	RLDI(T1,RXGETP)		; load the RXBUF PUT pointer
 	SEX T1\ LDXA\ SD	; get number of characters in buffer
 	LSDF\ ADI RXBUFSZ	; if negative, add buffer size to adjust
 
@@ -4074,11 +4076,10 @@ SLUIR5:	LDN T1\ ADI 1		; get PUT pointer and increment
 	LDI HIGH(RXBUF)\ PHI T1	; ...
 SLUIR6:	INP SLUBUF\ SEX SP	; read the character into buffer
 
-
 ;   Before checking the transmitter, check if the DMA pointer has advanced
 ; past the end of the screen while we were working, since the last check,
 ; and reset the DMA pointer if needed.
-SLUIS1:	GHI	DMAPTR		; get the high byte of the DMA pointer
+	GHI	DMAPTR		; get the high byte of the DMA pointer
 	BNZ	SLUIS5		; ...
 	RLDI(DMAPTR,SCREEN)	; reset the DMA pointer back to the start
 
@@ -4087,6 +4088,7 @@ SLUIS1:	GHI	DMAPTR		; get the high byte of the DMA pointer
 ; one.  If the buffer is empty, then there's no need to do anything - just
 ; reading the status will clear the CDP1854 interrupt request, and we can let
 ; the transmitter go idle.
+
 SLUIS5:	INP SLUSTS\ ANI SL.THRE	; is the THRE bit set?
 	LBZ	SLUIS3		; no - go check something else
 	RLDI(T1,FLOCTL)\ LDN T1	; see if flow control is enabled
