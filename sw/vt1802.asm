@@ -1930,7 +1930,9 @@ BPTMSG:	.TEXT	"\r\nBREAK AT \000"
 ;   This is a wrapper around the VTPUTT routine to save the registers that
 ; BASIC or command mode may need preserved but that the terminal routine
 ; does not (which calls VTPUTT directly). This saves the overhead of the
-; save and restores where it is not needed.
+; save and restores where it is not needed. This also returns the character
+; originally passed to it and clears DF.
+
 VTPUTC:	PHI AUX\ SEX SP		; save character in a safe place
 	PUSHR(T1)		; save the registers that we use 
 	PUSHR(T2)		; ...
@@ -1942,9 +1944,9 @@ VTPUTC:	PHI AUX\ SEX SP		; save character in a safe place
  	RLDI(T1,CURCHR)		; gotta get back the original data
 	LDN T1\ PHI AUX		; save it for a moment
 	SEX SP\ IRX\ POPR(P1)	; restore the registers we saved
-	POPR(T2)		; ...
-	POPRL(T1)		; ...
-	CDF\ GHI AUX\ RETURN	; and we're done!
+	POPR(T2)\ POPRL(T1)		; ...
+	CDF\ GHI AUX
+VTPUT1:	RETURN			; and we're done!
 
 ;++
 ;   This routine is called whenever we want to send a character to the video
@@ -1954,39 +1956,31 @@ VTPUTC:	PHI AUX\ SEX SP		; save character in a safe place
 ; handle those as needed.  And lastly, if it's just a plain ordinary printing
 ; character then we branch off to NORMAL to handle the alternate character set
 ; and reverse video.
-;
-;   One note - this routine can be called directly from BASIC and as such it's
-; important that we preserve all registers used AND that we return the original
-; character in D.
 ;--
-VTPUTT:	PHI AUX			; save character in a safe place
+VTPUTT:	PHI AUX			; save character
 
-VTPUT6:	RLDI(T1,CURCHR)		; point to our local storage
+	RLDI(T1,CURCHR)		; point to our local storage
 	GHI AUX\ STR T1		; move the character to CURCHR
 
 	DEC T1\ LDN T1		; and then load ESCSTA
-	LBZ VTPUT3		; jump if we're processing an escape sequence
+	LBNZ VTPUT3		; jump if we're processing an escape sequence
 
-	SHL\ ADI LOW(ESTATE)
-	PLO T1\ LDI 0
-	ADCI HIGH(ESTATE)
-	PHI T1\ LBR LBRI2
+	GHI AUX\ ANI $7F	; get the character and trim to 7 bits
+	SMI $7F\ LBZ VTPUT1	; if it's a RUBOUT then do nothing
 
-VTPUT3:	GHI AUX\ ANI $7F	; trim to 7 bits
-	PHI AUX\ LBZ VTPUT5	;  ... and ignore null characters
-	XRI $7F\ LBZ VTPUT5	;  ... ignore RUBOUTs too
-	GHI AUX\ SMI ' '	; is this a control character ?
-	LBGE VTPUT4		; branch if yes
+	ADI $5F\ ADI $20	; if it is not a control character
+	LBNF NORMAL		; then print as normal character
 
-	GHI AUX			; restore the original character
-	SHL\ ADI LOW(CTLTAB)
-	PLO T1\ LDI 0
-	ADCI HIGH(CTLTAB)
-	PHI T1\ LBR LBRI2
+	SHL\ ADI LOW(CTLTAB)	; else double and add to CTLTAB table base
+	PLO T1\ LDI 0		; set pointer low byte
+	ADCI HIGH(CTLTAB)	; setup high byte of address
+	PHI T1\ LBR LBRI2	; call table dispatch
 
-VTPUT4:	GHI AUX\ LBR NORMAL	; display it as a normal character
+VTPUT3:	SHL\ ADI LOW(ESTATE)	; double it and add to ESTATE tables base
+	PLO T1\ LDI 0		; set pointer low byte
+	ADCI HIGH(ESTATE)	; setup high byte of address
+	PHI T1\ LBR LBRI2	; call table dispatch
 
-VTPUT5:	RETURN
 
 	.SBTTL	Write Normal Characters to the Screen
 
