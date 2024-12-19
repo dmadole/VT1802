@@ -4056,7 +4056,7 @@ EOFISQ:	INP CRTSTS		; read the status register to clear the IRQ
 ;   If the bell timer is non-zero, then the beeper is turned on and we should
 ; decrement TTIMER.  When TTIMER reaches zero, we turn off the speaker.  This
 ; is used to implement the ^G bell function of the VT52...
-	LDI LOW(TTIMER)\ PLO T1 ; point to current bell timer
+	RLDI(T1,TTIMER)\ PLO T1 ; point to current bell timer
 	LDN T1\ BZ EOFIS1	; get and just return now if it's zero
 	SMI 1\ STR T1		; otherwise decrement it
 	BNZ EOFIS1		; just keep going until it reaches zero
@@ -4126,20 +4126,20 @@ SLUIRX:	RLDI(T1,RXGETP)		; load the RXBUF PUT pointer
 	SEX SP\ LBR SLUIR6	; yes - read the character but discard it
 
 SLUIR1:	ADI RXBUFSZ-RXSTOP	; is the buffer less than 2/3 full
-	BL SLUIR5		; yes - just get input character
+	LBL SLUIR5		; yes - just get input character
 
 	INC T1\ LDN T1		; get flow control option
-	BZ SLUIR4		; if zero - no flow control needed
+	LBZ SLUIR4		; if zero - no flow control needed
 	XRI $FF\ BZ SLUIR2	; if ff - do XON/XOFF flow control
 
 ; Here for CTS flow control ...
 	SEX INTPC\ OUT FLAGS	; clear CTS
 	.BYTE FL.CCTS		;  ...
-	SEX T1\ BR SLUIR4	; and now check the transmitter next
+	SEX T1\ LBR SLUIR4	; and now check the transmitter next
 
 ; Here for XON/XOFF flow control ...
 SLUIR2:	INC T1\ LDN T1		; read the TXONOF flag
-	BNZ SLUIR3		; if already set non-zero do nothing
+	LBNZ SLUIR3		; if already set non-zero do nothing
 	LDI $FF\ STR T1		; set to $ff to trigger xoff transmit
 
 ; Copy the character into the buffer
