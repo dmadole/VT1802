@@ -198,8 +198,14 @@
 ;	     Make ISR handle multiple events per invocation to reduce latency
 ;	     and overhead when interrupts happen during interrupts.
 ;
+; 042	-- Major restructuring around the termainal main loop and subroutine
+;	     calls for the basic I/O functions, adapting a quick call scheme
+;	     for those time critical things. Changed the jump tables from
+;	     plain addresses to LBR instructions to avoid need for SEP stuff.
+;	     Other changes and restructuring to support this.
+;
 ;--
-VEREDT	.EQU	41	; and the edit level
+VEREDT	.EQU	42	; and the edit level
 ;
 ; TODO list-
 ;   Drawing boxes and lines should be easier - maybe some kind of escape
