@@ -45,11 +45,12 @@
 /* 14-DEC-24	DSM	Stretch the 8275 DMA write from the trailing	*/
 /*			  edge of TPA to the leading edge of TPB.  This	*/
 /*			  gives it more time with a fast 1805/6 clock.	*/
+/* 21-DEC-24	RLA	Stretch IOWR time too, per Ian May's suggestion	*/
 /*--									*/
 NAME            VT1802;
 PARTNO          VT1802;
-REVISION        E;
-DATE            12/14/24;
+REVISION        F;
+DATE            12/21/24;
 DESIGNER        Robert Armstrong;
 COMPANY         Spare Time Gizmos;
 ASSEMBLY        VT1802;
@@ -97,15 +98,15 @@ INTACK = SC:3 & TPA;
 
 
 /*   IO_STRETCH is a simple SR flip flop that's set by TPA and cleared	*/
-/* by TPB.  This lets us stretch the usual CDP1802 I/O read time to	*/
-/* almost 8 clock cycles, which is nearly an eternity. Once we have IO_	*/
-/* STRETCH signal we can generate the IORD and IOWR signals.  Remember	*/
-/* that on the 1802 an I/O read is a memory write, and an I/O write is	*/
-/* a memory read.  Note that these signals are only valid when N != 0,	*/
-/* and you must include some kind of N decoding in any logic.   	*/
+/* by TPB. This lets us stretch the usual CDP1802 I/O time to 5.5 clock	*/
+/* cycles, which is nearly an eternity. Once we have IO_STRETCH signal	*/
+/* we can generate the IORD and IOWR signals. Remember that on the 1802	*/
+/* an I/O read is a memory write, and an I/O write is a memory read.	*/
+/* Note that these signals are only valid when N != 0, and you must	*/
+/* include some kind of N decoding in any logic.   			*/
 IO_STRETCH = (!IO_STRETCH & TPA)  #  (IO_STRETCH & !TPB);
 IORD = ((IO_STRETCH & !TPA) # TPB) & !MRD;
-IOWR = TPB & MRD;
+IOWR = ((IO_STRETCH & !TPA) # TPB) &  MRD;
 
 
 /*   Generate the read and write strobes for the 8275 CRTC. RD_CRTC and	*/
