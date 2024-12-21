@@ -1691,6 +1691,8 @@ SERPU3:	QCALL(SERPUQ)
 	IRX\ POPRL(T1)		; restore T1
 	GHI AUX\ RETURN		; and we're done
 
+	.SBTTL	GETKEY and VTPUTC Standard Call Wrapper Routines
+
 ;++
 ;   This is an SCRT wrapper around the GETKEQ quick-call subroutine so that
 ; it can be used by BASIC and the monitor through CALL(GETKEQ). This gets
@@ -1702,8 +1704,6 @@ GETKEY:	PUSHR(T1)\ PUSHR(T2)	; save two working registers
 	QCALL(GETKEQ)
 	IRX\ POPR(T2)\ POPRL(T1); restore saved registers
 	GHI AUX\ RETURN		; and we're done
-
-	.SBTTL	Output Characters to the Screen
 
 ;++
 ;   This is a wrapper around the VTPUTQ routine to save the registers that
@@ -2064,6 +2064,8 @@ SHORE2:	OUTCHR('R')		; type "Rn="
 
 ; Messages...
 BPTMSG:	.TEXT	"\r\nBREAK AT \000"
+
+	.SBTTL	Output Characters to the Screen
 
 ;++
 ;   This routine is called whenever we want to send a character to the video
@@ -4326,6 +4328,7 @@ SLUIS2:	RLDI(T1,SLUFMT)\ LDN T1	; get the current SLU format bits
 ; There's nothing more to do!
 SLUIS3:	SEX SP\ LBR ISRDON	; dismiss the interrupt and we're done
 
+	.SBTTL	Serial Port Buffer Routines
 
 ;++
 ;   This routine will extract and return the next character from the serial
