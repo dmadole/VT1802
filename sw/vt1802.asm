@@ -1642,6 +1642,7 @@ TERM5:	QCALL(GETKEQ)		; anything waiting from the keyboard?
 	QCALL(SERPUQ)		; yes - send it to the serial port
 	BR TERM1		; and keep going
 
+SPRET:	SEX SP			; reset stack pointer if needed
 SHRET:	QRETURN			; get the return address
 
 	.SBTTL	Serial Port Standard Call Wrapper Routines
@@ -2144,7 +2145,7 @@ NORMA4:	DEC T1			; move to VISCUR
 	LDN T1\ BZ NORMA5	; get VISCUR, if zero then don't update
 	OUT CRTCMD		; give the load cursor command
 	OUT CRTPRM\ OUT CRTPRM	; output then column and row
-NORMA5:	SEX SP\ LBR SHRET	; then return
+NORMA5:	LBR SPRET		; then return
 
 NEWLIN: STR T1\ INC T1		; zero the column and point to CURSY
 
@@ -2757,7 +2758,7 @@ CLRLI1:	LDI ' '			; get a space
 	STXD\ STXD\ STXD\ STXD	; and set next four bytes to it
 	DEC T1\ GLO T1		; check loop count
 	LBNZ CLRLI1		; repeat until done
-	SEX SP\ LBR SHRET	; and that's all for now
+	LBR SPRET		; and that's all for now
 
 ;++
 ;   This routine will erase all characters from the current cursor location to
@@ -2849,10 +2850,10 @@ LDCURS:	RLDI(T1,VISCUR)\ LDN T1	; is the cursor hidden ?
 
 ; Here to show the real cursor ...
 LDCUR1:	SEX T1
-	OUT CRTCMD	; give the load cursor command
+	OUT CRTCMD		; give the load cursor command
 	OUT CRTPRM		; and output X ...
 	OUT CRTPRM		; ... and then Y
-LDCUR2:	SEX SP\ LBR SHRET	; ... and return
+LDCUR2:	LBR SPRET		; ... and return
 
 ;++
 ;   This subroutine will compute the actual address of the character under the
@@ -2889,7 +2890,7 @@ DSACURS:RLDI(T1,VISCUR)	; point to the cursor display flag
 	.BYTE CC.LCUR		; ...
 	OUT CRTPRM\ .BYTE 80 	; off-screen regardless of MAXCOL/MAXROW
 	OUT CRTPRM\ .BYTE 64	; ...
-	SEX SP\ LBR SHRET	; return
+	LBR SPRET		; return
 
 ;++
 ;   The <ESC>d sequence will undo the effects of an <ESC>h and re-enable
@@ -3001,7 +3002,7 @@ BELL:	OUTI(TONE,BELLNOTE)	; program the CDP1863 for 440Hz
 ; About half a second sounds like a good value...
 	LDI BELLTIME		; ...
 	STR	T1		; set TTIMER
-	SEX SP\ LBR SHRET	; that's all we have to do!
+	LBR SPRET		; that's all we have to do!
 
 	.SBTTL	Display Startup Splash Screen
 
