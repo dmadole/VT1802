@@ -2626,15 +2626,6 @@ CRET:	RLDI(T1,CURSX)		; point to the X cursor location
 	LBR	LDCURS		; now go tell the 8275
 
 ;++
-;   CRIGHT is the opposite of carriage return - it moves the cursor to the 
-; right margin of the current line ...
-;--
-CRIGHT:	RLDI(T1,CURSX)		; change the X cursor position
-	LDI MAXCOL-1\ STR T1	; to the right margin
-	LBR	LDCURS		; update the cursor and we're done
-
-
-;++
 ;   This routine will implement the line feed function. This function will
 ; move the cursor down one line, unless the cursor happens to be on the
 ; bottom of the screen. In this case the screen is scrolled up one line and
