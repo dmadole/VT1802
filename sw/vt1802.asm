@@ -2463,6 +2463,8 @@ RTEST1:	LDI 0\ CALL(ESCSET)	; first set ESCSTA to zero
 
 	PAGE
 
+NOOP:	.EQU	SHRET
+
 CONTRL:	STR SP\ ADD\ ADD	; multiply index by three
 	ADI LOW(CTLTAB)\ PLO R3	; add base and jump to it
 
@@ -2498,8 +2500,6 @@ CTLTAB:	LBR	NOOP		; 0x00 ^@ NUL
 	LBR	NOOP		; 0x1D ^] GS
 	LBR	NOOP		; 0x1E ^^ RS
 	LBR	NOOP		; 0x1F ^_ US
-
-NOOP:	LBR SHRET
 
 	.SBTTL	Escape Sequence State Table
 
