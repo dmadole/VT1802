@@ -2137,24 +2137,23 @@ NORMA1:	LDA T1\ INC T1\ INC T1	 ; get TOPLIN and move to CURSY
 	LDN SP\ STR P1		; get character and put on screen
 
 	LDN T1\ SMI MAXCOL-1	; get CURSX and check if last column
-	BZ NORMA2		; yes - need to adjust row
+	BZ NEWLIN		; yes - need to adjust row
 	ADI MAXCOL\ STR T1	; no - add one to CURSX
 
 NORMA4:	DEC T1			; move to VISCUR
-	LDN T1\ BZ NORMA5	; the cursor is hidden, don't update
-
+	LDN T1\ BZ NORMA5	; get VISCUR, if zero then don't update
 	OUT CRTCMD		; give the load cursor command
-	OUT CRTPRM		; and output X ...
-	OUT CRTPRM		; ... and then Y
-NORMA5:	SEX SP\ LBR SHRET	; ... and return
+	OUT CRTPRM\ OUT CRTPRM	; output then column and row
+NORMA5:	SEX SP\ LBR SHRET	; then return
 
-NORMA2: STR T1\ INC T1		; zero the column and point to CURSY
-	LDN T1\ SMI MAXROW-1	; get CURSY and check if last row
-	BZ NORMA3		; yes - need to scroll up
+NEWLIN: STR T1\ INC T1		; zero the column and point to CURSY
+
+NXTLIN:	LDN T1\ SMI MAXROW-1	; get CURSY and check if last row
+	BZ SCRLIN		; yes - need to scroll up
 	ADI MAXROW\ STR T1	; no - add one to CURSY
 	DEC T1\ BR NORMA4	; update hardware cursor location
 
-NORMA3:	DEC T1\ DEC T1		; move to VISCUR
+SCRLIN:	DEC T1\ DEC T1		; move to VISCUR
 	LDN T1\ LBZ SCRUP	; if the cursor hidden, don't update
 
 	OUT CRTCMD		; give the load cursor command
@@ -2640,10 +2639,8 @@ CRIGHT:	RLDI(T1,CURSX)		; change the X cursor position
 ; bottom of the screen. In this case the screen is scrolled up one line and
 ; the cursor remains in the same location (on the bottom line of the screen).
 ;--
-LINEFD: RLDI(T1,CURSY)\ LDN T1	; get the line location of the cursor
-	SMI	MAXROW-1	; is it on the bottom of the screen ?
-	LBL	DOWN		; just do a down operation if it is
-	LBR	SCRUP		; otherwise go scroll the screen up
+LINEFD:	RLDI(T1,CURSY)\ SEX T1	; point to CURXY and set x to pointer
+	LBR NXTLIN		; use next line code in normal character
 
 ;++
 ;   This routine will implement the reverse line feed function.  This
